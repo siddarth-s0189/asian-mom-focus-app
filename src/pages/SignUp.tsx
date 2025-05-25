@@ -3,17 +3,94 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { checkEmailExists, cleanupAuthState } from "@/utils/authUtils";
+import { Loader2 } from "lucide-react";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement Supabase sign up
-    console.log("Sign up:", { email, password, agreedToTerms });
+    
+    if (!agreedToTerms) {
+      toast({
+        title: "Terms Required",
+        description: "Please agree to the terms of service and privacy policy.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Clean up any existing auth state first
+      cleanupAuthState();
+      
+      // Check if email already exists
+      console.log('Checking if email exists:', email);
+      const emailExists = await checkEmailExists(email);
+      
+      if (emailExists) {
+        toast({
+          title: "Email Already in Use",
+          description: "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Attempt global sign out before signup
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out error (continuing):', err);
+      }
+
+      // Proceed with signup
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Check Your Email",
+          description: "We've sent you a confirmation link to complete your registration.",
+        });
+        
+        // Redirect to verification page
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+      }
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      toast({
+        title: "Sign Up Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,6 +116,21 @@ const SignUp = () => {
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-black text-gray-400">OR</span>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="fullName" className="block text-sm font-medium text-white mb-2">
+              Full Name
+            </label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="Your full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="bg-gray-900 border-gray-700 text-white placeholder-gray-500"
+              required
+            />
           </div>
 
           <div>
@@ -68,6 +160,7 @@ const SignUp = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="bg-gray-900 border-gray-700 text-white placeholder-gray-500"
               required
+              minLength={6}
             />
           </div>
 
@@ -89,9 +182,16 @@ const SignUp = () => {
           <Button 
             type="submit" 
             className="w-full bg-white text-black hover:bg-gray-200 py-3 font-semibold"
-            disabled={!agreedToTerms}
+            disabled={!agreedToTerms || loading}
           >
-            Sign up
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Sign up"
+            )}
           </Button>
 
           <p className="text-center text-gray-400">

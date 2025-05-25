@@ -1,18 +1,91 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { cleanupAuthState } from "@/utils/authUtils";
+import { Loader2 } from "lucide-react";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement Supabase sign in
-    console.log("Sign in:", { email, password });
+    setLoading(true);
+
+    try {
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out error (continuing):', err);
+      }
+
+      // Sign in with email/password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        });
+        
+        // Force page reload for clean state
+        window.location.href = '/dashboard';
+      }
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (error.message === 'Invalid login credentials') {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (error.message === 'Email not confirmed') {
+        errorMessage = "Please check your email and click the verification link before signing in.";
+      }
+      
+      toast({
+        title: "Sign In Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-6">
@@ -77,8 +150,16 @@ const SignIn = () => {
           <Button 
             type="submit" 
             className="w-full bg-white text-black hover:bg-gray-200 py-3 font-semibold"
+            disabled={loading}
           >
-            Sign in
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
 
           <p className="text-center text-gray-400">
