@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { User } from "lucide-react";
+import ProfileDropdown from "@/components/ProfileDropdown";
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -12,10 +12,13 @@ const Navbar = () => {
       <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2">
         <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white relative">
           <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-            <path d="M12 2L13.5 8.5L20 7L14 12L20 17L13.5 15.5L12 22L10.5 15.5L4 17L10 12L4 7L10.5 8.5L12 2Z" />
-            <circle cx="14" cy="6" r="1" className="fill-red-800" />
-            <circle cx="16" cy="8" r="0.5" className="fill-red-800" />
-            <circle cx="10" cy="16" r="0.8" className="fill-red-800" />
+            <path d="M12 4L10 8L6 9L9 12L8 16L12 14L16 16L15 12L18 9L14 8L12 4Z" fill="currentColor"/>
+            <path d="M12 14L10 18L8 17L9 15L12 14Z" fill="#8B0000"/>
+            <circle cx="10" cy="18" r="0.5" fill="#8B0000"/>
+            <circle cx="8.5" cy="17.5" r="0.3" fill="#8B0000"/>
+            <path d="M14 14L16 18L18 17L17 15L14 14Z" fill="#8B0000"/>
+            <circle cx="16" cy="18" r="0.5" fill="#8B0000"/>
+            <circle cx="17.5" cy="17.5" r="0.3" fill="#8B0000"/>
           </svg>
         </div>
         <span className="text-white font-semibold text-lg">
@@ -25,15 +28,7 @@ const Navbar = () => {
       
       <div className="flex items-center gap-4">
         {user ? (
-          <Link to="/profile">
-            <Button 
-              variant="outline" 
-              className="border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-colors"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Profile
-            </Button>
-          </Link>
+          <ProfileDropdown />
         ) : (
           <Link to="/signin">
             <Button 

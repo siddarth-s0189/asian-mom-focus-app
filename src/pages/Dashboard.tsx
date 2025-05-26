@@ -1,18 +1,25 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { cleanupAuthState } from "@/utils/authUtils";
-import { Loader2, LogOut, User } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+
+  // Session configuration state
+  const [sessionGoal, setSessionGoal] = useState("");
+  const [duration, setDuration] = useState([60]); // in minutes
+  const [allowBreaks, setAllowBreaks] = useState(true);
+  const [workplace, setWorkplace] = useState("this-device");
+  const [strictness, setStrictness] = useState([50]); // 0-100 scale
 
   useEffect(() => {
     if (!loading && !user) {
@@ -20,33 +27,36 @@ const Dashboard = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSignOut = async () => {
-    try {
-      // Clean up auth state
-      cleanupAuthState();
-      
-      // Attempt global sign out
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log('Sign out error (continuing):', err);
-      }
-      
-      toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out.",
-      });
-      
-      // Force page reload for a clean state
-      window.location.href = '/signin';
-    } catch (error: any) {
-      console.error('Sign out error:', error);
-      toast({
-        title: "Sign Out Failed",
-        description: error.message || "Something went wrong.",
-        variant: "destructive",
-      });
-    }
+  const handleStartSession = () => {
+    // TODO: Implement session start logic
+    console.log("Starting session with:", {
+      goal: sessionGoal,
+      duration: duration[0],
+      breaks: allowBreaks,
+      workplace,
+      strictness: strictness[0]
+    });
+  };
+
+  const getDurationText = () => {
+    const minutes = duration[0];
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  };
+
+  const getStrictnessLevel = () => {
+    const level = strictness[0];
+    if (level < 33) return { text: "Chill", color: "text-blue-400" };
+    if (level < 67) return { text: "Medium", color: "text-yellow-400" };
+    return { text: "Insane", color: "text-red-400" };
+  };
+
+  const getBreakInfo = () => {
+    if (!allowBreaks || duration[0] < 60) return null;
+    const hours = Math.floor(duration[0] / 60);
+    return `${hours} × 10min break${hours > 1 ? 's' : ''}`;
   };
 
   if (loading) {
@@ -58,7 +68,7 @@ const Dashboard = () => {
   }
 
   if (!user) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
@@ -66,54 +76,147 @@ const Dashboard = () => {
       <Navbar />
       
       <div className="container mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-4xl font-bold text-white">
-              Welcome to AsianMom.gg!
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Focus Session Setup
             </h1>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-white">
-                <User className="w-4 h-4" />
-                <span className="text-sm">{user.email}</span>
+            <p className="text-gray-400 text-lg">
+              Configure your productivity session and let Asian Mom keep you on track!
+            </p>
+          </div>
+          
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 space-y-8">
+            {/* Session Goal */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-white">
+                📝 Session Goal
+              </label>
+              <Textarea
+                placeholder="e.g., Revise math, Write essay intro, Complete project..."
+                value={sessionGoal}
+                onChange={(e) => setSessionGoal(e.target.value)}
+                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 min-h-[80px]"
+              />
+            </div>
+
+            {/* Session Duration */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-white">
+                ⏳ Session Duration: {getDurationText()}
+              </label>
+              <Slider
+                value={duration}
+                onValueChange={setDuration}
+                max={360}
+                min={30}
+                step={15}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>30 min</span>
+                <span>6 hours</span>
               </div>
-              <Button 
-                onClick={handleSignOut}
-                variant="outline" 
-                className="border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-colors"
+            </div>
+
+            {/* Breaks */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-white">
+                  ☕ Breaks
+                </label>
+                <Switch
+                  checked={allowBreaks}
+                  onCheckedChange={setAllowBreaks}
+                  disabled={duration[0] < 60}
+                />
+              </div>
+              {duration[0] < 60 ? (
+                <p className="text-xs text-gray-500">
+                  Breaks are only available for sessions ≥ 1 hour
+                </p>
+              ) : getBreakInfo() ? (
+                <p className="text-xs text-gray-400">
+                  {getBreakInfo()} automatically scheduled
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400">
+                  No breaks - pure focus mode
+                </p>
+              )}
+            </div>
+
+            {/* Workplace */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-white">
+                💻 Workplace
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant={workplace === "this-device" ? "default" : "outline"}
+                  onClick={() => setWorkplace("this-device")}
+                  className={workplace === "this-device" 
+                    ? "bg-red-600 hover:bg-red-700" 
+                    : "border-gray-600 text-gray-300 hover:bg-gray-800"
+                  }
+                >
+                  This device only
+                </Button>
+                <Button
+                  variant={workplace === "other-device" ? "default" : "outline"}
+                  onClick={() => setWorkplace("other-device")}
+                  className={workplace === "other-device" 
+                    ? "bg-red-600 hover:bg-red-700" 
+                    : "border-gray-600 text-gray-300 hover:bg-gray-800"
+                  }
+                >
+                  Other device
+                </Button>
+              </div>
+            </div>
+
+            {/* Strictness Level */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-white">
+                🎚️ Strictness Level (Asianness): <span className={getStrictnessLevel().color}>
+                  {getStrictnessLevel().text}
+                </span>
+              </label>
+              <div className="relative">
+                <Slider
+                  value={strictness}
+                  onValueChange={setStrictness}
+                  max={100}
+                  min={0}
+                  step={1}
+                  className="w-full"
+                />
+                <div 
+                  className="absolute top-0 h-2 rounded-full pointer-events-none"
+                  style={{
+                    background: `linear-gradient(to right, #3B82F6 0%, #EF4444 100%)`,
+                    width: '100%',
+                    zIndex: -1
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-400">
+                <span className="text-blue-400">Chill (2x/session)</span>
+                <span className="text-yellow-400">Medium (~20-30min)</span>
+                <span className="text-red-400">Insane (~5-15min)</span>
+              </div>
+            </div>
+
+            {/* Start Session Button */}
+            <div className="pt-6">
+              <Button
+                onClick={handleStartSession}
+                disabled={!sessionGoal.trim()}
+                className="w-full bg-red-600 hover:bg-red-700 text-white text-lg py-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
+                Start Focus Session
               </Button>
             </div>
-          </div>
-          <p className="text-gray-400 text-lg">
-            Your productivity journey starts here. Get ready for some tough love!
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">Tasks</h3>
-            <p className="text-gray-400 mb-4">Manage your daily tasks with Asian mom motivation.</p>
-            <Button className="w-full bg-red-600 hover:bg-red-700">
-              View Tasks
-            </Button>
-          </div>
-          
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">Goals</h3>
-            <p className="text-gray-400 mb-4">Set and track your long-term goals.</p>
-            <Button className="w-full bg-red-600 hover:bg-red-700">
-              View Goals
-            </Button>
-          </div>
-          
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">Progress</h3>
-            <p className="text-gray-400 mb-4">Track your productivity progress.</p>
-            <Button className="w-full bg-red-600 hover:bg-red-700">
-              View Progress
-            </Button>
           </div>
         </div>
       </div>
