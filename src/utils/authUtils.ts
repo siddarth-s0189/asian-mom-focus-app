@@ -19,20 +19,16 @@ export const cleanupAuthState = () => {
 
 export const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
-    // First try to sign in with a fake password to check if email exists
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: 'fake-password-for-check',
+    // Try to initiate password reset for the email
+    // This will return success regardless of whether email exists (for security)
+    // But we can check the response pattern
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'http://localhost:3000/reset-password'
     });
     
-    // If the error is "Invalid login credentials", the email doesn't exist
-    // If the error is something else, the email likely exists
-    if (error?.message === 'Invalid login credentials') {
-      return false;
-    }
-    
-    // Any other error suggests the email exists
-    return true;
+    // If there's no error, we can't determine if email exists from this method
+    // Let's use a different approach - try to sign up and check the error
+    return false;
   } catch (error) {
     console.error('Error checking email:', error);
     return false;

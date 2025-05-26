@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { checkEmailExists, cleanupAuthState } from "@/utils/authUtils";
+import { cleanupAuthState } from "@/utils/authUtils";
 import { Loader2 } from "lucide-react";
 
 const SignUp = () => {
@@ -35,12 +35,24 @@ const SignUp = () => {
     try {
       // Clean up any existing auth state first
       cleanupAuthState();
-      
-      // Check if email already exists
+
+      // Attempt global sign out before signup
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out error (continuing):', err);
+      }
+
+      // Check if user already exists by attempting to sign in
       console.log('Checking if email exists:', email);
-      const emailExists = await checkEmailExists(email);
-      
-      if (emailExists) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'dummy-password-check',
+      });
+
+      // If we get "Invalid login credentials", the email might not exist
+      // If we get "Email not confirmed" or other auth errors, the email exists
+      if (signInError && !signInError.message.includes('Invalid login credentials')) {
         toast({
           title: "Email Already in Use",
           description: "An account with this email already exists. Please sign in instead.",
@@ -48,13 +60,6 @@ const SignUp = () => {
         });
         setLoading(false);
         return;
-      }
-
-      // Attempt global sign out before signup
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log('Sign out error (continuing):', err);
       }
 
       // Proceed with signup
@@ -74,12 +79,12 @@ const SignUp = () => {
 
       if (data.user) {
         toast({
-          title: "Check Your Email",
-          description: "We've sent you a confirmation link to complete your registration.",
+          title: "Account Created Successfully",
+          description: "Welcome! You're now signed in.",
         });
         
-        // Redirect to verification page
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        // Redirect directly to dashboard
+        navigate('/dashboard');
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
