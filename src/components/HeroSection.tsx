@@ -46,7 +46,7 @@ const HeroSection = () => {
         </p>
       </div>
       
-      <style jsx>{`
+      <style>{`
         @keyframes glow {
           from {
             box-shadow: 0 0 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.3), 0 0 60px rgba(220, 38, 38, 0.2);
