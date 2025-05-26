@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cleanupAuthState } from "@/utils/authUtils";
-import { Loader2, LogOut, User, ChefHat } from "lucide-react";
+import { Loader2, LogOut, User } from "lucide-react";
+import Navbar from "@/components/Navbar";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -61,37 +63,29 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-black">
-      <nav className="w-full px-6 py-4 flex justify-between items-center bg-black/50 backdrop-blur-sm border-b border-gray-800">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white">
-            <ChefHat className="w-5 h-5" />
-          </div>
-          <span className="text-white font-semibold text-lg">
-            AsianMom<span className="text-red-500">.gg</span>
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-white">
-            <User className="w-4 h-4" />
-            <span className="text-sm">{user.email}</span>
-          </div>
-          <Button 
-            onClick={handleSignOut}
-            variant="outline" 
-            className="border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-colors"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      </nav>
+      <Navbar />
       
       <div className="container mx-auto px-6 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Welcome to AsianMom.gg!
-          </h1>
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-4xl font-bold text-white">
+              Welcome to AsianMom.gg!
+            </h1>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-white">
+                <User className="w-4 h-4" />
+                <span className="text-sm">{user.email}</span>
+              </div>
+              <Button 
+                onClick={handleSignOut}
+                variant="outline" 
+                className="border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
           <p className="text-gray-400 text-lg">
             Your productivity journey starts here. Get ready for some tough love!
           </p>
