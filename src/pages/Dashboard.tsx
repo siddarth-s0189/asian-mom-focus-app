@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cleanupAuthState } from "@/utils/authUtils";
-import { Loader2, LogOut, User } from "lucide-react";
+import { Loader2, LogOut, User, ChefHat } from "lucide-react";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -64,8 +63,8 @@ const Dashboard = () => {
     <div className="min-h-screen bg-black">
       <nav className="w-full px-6 py-4 flex justify-between items-center bg-black/50 backdrop-blur-sm border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white font-bold text-sm">
-            AM
+          <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white">
+            <ChefHat className="w-5 h-5" />
           </div>
           <span className="text-white font-semibold text-lg">
             AsianMom<span className="text-red-500">.gg</span>

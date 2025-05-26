@@ -31,7 +31,11 @@ const HeroSection = () => {
         <Link to="/signup">
           <Button 
             size="lg" 
-            className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg font-semibold rounded-lg transition-all transform hover:scale-105"
+            className="relative bg-red-600 hover:bg-red-700 text-white px-12 py-6 text-xl font-semibold rounded-lg transition-all transform hover:scale-105 shadow-2xl animate-pulse"
+            style={{
+              boxShadow: "0 0 30px rgba(220, 38, 38, 0.6), 0 0 60px rgba(220, 38, 38, 0.4), 0 0 90px rgba(220, 38, 38, 0.2)",
+              animation: "glow 2s ease-in-out infinite alternate"
+            }}
           >
             Get Yelled At Now
           </Button>
@@ -41,6 +45,17 @@ const HeroSection = () => {
           Free to start • No credit card required
         </p>
       </div>
+      
+      <style jsx>{`
+        @keyframes glow {
+          from {
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.3), 0 0 60px rgba(220, 38, 38, 0.2);
+          }
+          to {
+            box-shadow: 0 0 40px rgba(220, 38, 38, 0.8), 0 0 80px rgba(220, 38, 38, 0.6), 0 0 120px rgba(220, 38, 38, 0.4);
+          }
+        }
+      `}</style>
     </section>
   );
 };
