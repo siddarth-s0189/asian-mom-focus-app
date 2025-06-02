@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -170,10 +171,10 @@ const Dashboard = () => {
                           max={360}
                           min={30}
                           step={15}
-                          className="w-full"
+                          className="w-full duration-slider"
                         />
-                        <style jsx>{`
-                          .w-full :global([role="slider"]) {
+                        <style>{`
+                          .duration-slider [role="slider"] {
                             background: white;
                             border: 4px solid #3b82f6;
                             width: 28px;
@@ -182,15 +183,16 @@ const Dashboard = () => {
                             ring: 4px;
                             ring-color: rgba(59, 130, 246, 0.2);
                           }
-                          .w-full :global([data-orientation="horizontal"]) {
+                          .duration-slider [data-orientation="horizontal"] {
                             height: 16px;
                             background: rgba(55, 65, 81, 0.8);
                             border-radius: 9999px;
                             border: 1px solid rgb(75, 85, 99);
                           }
-                          .w-full :global([data-orientation="horizontal"] > span) {
+                          .duration-slider [data-orientation="horizontal"] > span {
                             background: linear-gradient(to right, #60a5fa, #3b82f6, #9333ea);
                             height: 16px;
+                            border-radius: 9999px;
                             box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
                           }
                         `}</style>
@@ -304,8 +306,8 @@ const Dashboard = () => {
                           step={1}
                           className="w-full focus-slider"
                         />
-                        <style jsx>{`
-                          .focus-slider :global([role="slider"]) {
+                        <style>{`
+                          .focus-slider [role="slider"] {
                             background: white;
                             border: 4px solid #f97316;
                             width: 28px;
@@ -314,15 +316,16 @@ const Dashboard = () => {
                             ring: 4px;
                             ring-color: rgba(249, 115, 22, 0.2);
                           }
-                          .focus-slider :global([data-orientation="horizontal"]) {
+                          .focus-slider [data-orientation="horizontal"] {
                             height: 16px;
                             background: rgba(55, 65, 81, 0.8);
                             border-radius: 9999px;
                             border: 1px solid rgb(75, 85, 99);
                           }
-                          .focus-slider :global([data-orientation="horizontal"] > span) {
+                          .focus-slider [data-orientation="horizontal"] > span {
                             background: linear-gradient(to right, #06b6d4, #f97316, #dc2626);
                             height: 16px;
+                            border-radius: 9999px;
                             box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3);
                           }
                         `}</style>
