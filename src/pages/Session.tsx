@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, Square, Coffee, RotateCcw, Clock, ArrowUp, ArrowDown } from "lucide-react";
+import { Play, Pause, Square, Coffee, RotateCcw, Clock, ArrowUp, ArrowDown, X, Triangle, Circle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -124,7 +124,13 @@ const Session = () => {
 
   const getMilestones = () => {
     const milestones = [
-      { label: "Start", position: 0, passed: getProgress() > 0 },
+      { 
+        label: "Start", 
+        position: 0, 
+        passed: getProgress() > 0,
+        icon: X,
+        color: "text-green-400"
+      },
     ];
 
     if (sessionConfig?.breaks && !isBreak) {
@@ -134,7 +140,9 @@ const Session = () => {
         milestones.push({
           label: `Break ${i}`,
           position,
-          passed: getProgress() >= position
+          passed: getProgress() >= position,
+          icon: i % 2 === 1 ? Triangle : Circle,
+          color: getProgress() >= position ? "text-blue-400" : "text-gray-500"
         });
       }
     }
@@ -142,7 +150,9 @@ const Session = () => {
     milestones.push({ 
       label: "End", 
       position: 100, 
-      passed: getProgress() >= 100 
+      passed: getProgress() >= 100,
+      icon: Square,
+      color: getProgress() >= 100 ? "text-red-400" : "text-gray-500"
     });
 
     return milestones;
@@ -158,39 +168,34 @@ const Session = () => {
         <Navbar />
         
         <div className="container mx-auto px-6 py-8">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-              
+            {/* Header with AI Avatar and Session Status */}
+            <div className="flex items-center justify-between mb-8">
               {/* AI Avatar */}
-              <div className="lg:col-span-1 flex justify-center lg:justify-start">
+              <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <div className="w-48 h-48 rounded-full bg-gradient-to-br from-red-500 via-orange-500 to-red-600 p-1 shadow-2xl shadow-red-500/50">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 via-orange-500 to-red-600 p-1 shadow-xl shadow-red-500/30">
                     <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
-                      <div className="text-6xl">🤖</div>
+                      <div className="text-2xl">🤖</div>
                     </div>
                   </div>
-                  <div className={`absolute -bottom-2 -right-2 w-12 h-12 rounded-full border-4 border-gray-900 flex items-center justify-center ${
+                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center ${
                     isRunning 
                       ? 'bg-green-500 animate-pulse' 
                       : 'bg-gray-600'
                   }`}>
-                    {isRunning ? (
-                      <div className="w-3 h-3 bg-white rounded-full" />
-                    ) : (
-                      <div className="w-3 h-3 bg-gray-400 rounded-full" />
-                    )}
+                    <div className={`w-2 h-2 rounded-full ${
+                      isRunning ? 'bg-white' : 'bg-gray-400'
+                    }`} />
                   </div>
                 </div>
-              </div>
-
-              {/* Timer Section */}
-              <div className="lg:col-span-2 space-y-8">
                 
-                {/* Session Info */}
-                <div className="text-center lg:text-left">
-                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-gray-800/60 border border-gray-600/50 mb-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">
+                    {isBreak ? "Take a breather!" : sessionConfig.goal}
+                  </h1>
+                  <div className="flex items-center mt-1">
                     {isBreak ? (
                       <>
                         <Coffee className="w-4 h-4 text-green-400 mr-2" />
@@ -203,83 +208,76 @@ const Session = () => {
                       </>
                     )}
                   </div>
-                  
-                  <h1 className="text-4xl lg:text-5xl font-bold text-white mb-2">
-                    {isBreak ? "Take a breather!" : sessionConfig.goal}
-                  </h1>
                 </div>
+              </div>
 
-                {/* Timer Display */}
-                <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center">
-                  
-                  {/* Timer Mode Toggle */}
-                  <div className="flex justify-center mb-6">
-                    <Button
-                      onClick={toggleTimerMode}
-                      variant="outline"
-                      className="border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-600/70 rounded-xl px-6 py-2"
-                    >
-                      {isCountUp ? (
-                        <>
-                          <ArrowDown className="w-4 h-4 mr-2" />
-                          Switch to Countdown
-                        </>
-                      ) : (
-                        <>
-                          <ArrowUp className="w-4 h-4 mr-2" />
-                          Switch to Count Up
-                        </>
-                      )}
-                    </Button>
-                  </div>
+              {/* Timer Mode Toggle */}
+              <Button
+                onClick={toggleTimerMode}
+                variant="outline"
+                className="border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-600/70 rounded-xl px-4 py-2"
+              >
+                {isCountUp ? (
+                  <>
+                    <ArrowDown className="w-4 h-4 mr-2" />
+                    Countdown
+                  </>
+                ) : (
+                  <>
+                    <ArrowUp className="w-4 h-4 mr-2" />
+                    Count Up
+                  </>
+                )}
+              </Button>
+            </div>
 
-                  {/* Timer */}
-                  <div className="mb-8">
-                    <div className="text-7xl lg:text-8xl font-mono font-bold text-white mb-2">
-                      {getDisplayTime()}
-                    </div>
-                    <div className="text-gray-400 text-lg">
-                      {isCountUp ? 'Time Elapsed' : 'Time Remaining'}
-                    </div>
-                  </div>
-                  
-                  {/* Control Buttons */}
-                  <div className="flex items-center justify-center space-x-4">
-                    {!isRunning ? (
-                      <Button
-                        onClick={handleStart}
-                        className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30"
-                      >
-                        <Play className="w-6 h-6 mr-2" />
-                        {timeRemaining === totalTime ? 'Start' : 'Resume'}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handlePause}
-                        variant="outline"
-                        className="border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-600/70 px-8 py-4 text-lg rounded-xl"
-                      >
-                        <Pause className="w-6 h-6 mr-2" />
-                        Pause
-                      </Button>
-                    )}
-                    
-                    <Button
-                      onClick={handleStop}
-                      variant="outline"
-                      className="border-red-600/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:border-red-500 px-8 py-4 text-lg rounded-xl"
-                    >
-                      <Square className="w-6 h-6 mr-2" />
-                      Stop
-                    </Button>
-                  </div>
+            {/* Timer Section */}
+            <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center mb-8">
+              {/* Timer */}
+              <div className="mb-8">
+                <div className="text-7xl lg:text-8xl font-mono font-bold text-white mb-2">
+                  {getDisplayTime()}
                 </div>
+                <div className="text-gray-400 text-lg">
+                  {isCountUp ? 'Time Elapsed' : 'Time Remaining'}
+                </div>
+              </div>
+              
+              {/* Control Buttons */}
+              <div className="flex items-center justify-center space-x-4">
+                {!isRunning ? (
+                  <Button
+                    onClick={handleStart}
+                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30"
+                  >
+                    <Play className="w-6 h-6 mr-2" />
+                    {timeRemaining === totalTime ? 'Start' : 'Resume'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handlePause}
+                    variant="outline"
+                    className="border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-600/70 px-8 py-4 text-lg rounded-xl"
+                  >
+                    <Pause className="w-6 h-6 mr-2" />
+                    Pause
+                  </Button>
+                )}
+                
+                <Button
+                  onClick={handleStop}
+                  variant="outline"
+                  className="border-red-600/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:border-red-500 px-8 py-4 text-lg rounded-xl"
+                >
+                  <Square className="w-6 h-6 mr-2" />
+                  Stop
+                </Button>
               </div>
             </div>
 
             {/* Progress Section */}
             <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8">
                 <h3 className="text-2xl font-bold text-white">
                   {isBreak ? 'Break Progress' : 'Session Progress'}
                 </h3>
@@ -288,46 +286,62 @@ const Session = () => {
                 </div>
               </div>
               
-              {/* Progress Bar with Milestones */}
-              <div className="relative mb-8">
+              {/* Progress Bar with PS4 Controller Icons */}
+              <div className="relative mb-12">
                 <Progress 
                   value={getProgress()} 
-                  className="h-6 rounded-full"
+                  className="h-8 rounded-full"
                 />
                 
-                {/* Milestones */}
-                <div className="absolute top-0 left-0 right-0 h-6">
-                  {getMilestones().map((milestone, index) => (
-                    <div
-                      key={index}
-                      className="absolute top-0 h-6 flex items-center"
-                      style={{ left: `${milestone.position}%`, transform: 'translateX(-50%)' }}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 border-gray-900 ${
-                        milestone.passed 
-                          ? 'bg-white shadow-lg' 
-                          : 'bg-gray-600'
-                      }`} />
-                    </div>
-                  ))}
+                {/* PS4 Controller Icon Milestones */}
+                <div className="absolute top-0 left-0 right-0 h-8 flex items-center">
+                  {getMilestones().map((milestone, index) => {
+                    const IconComponent = milestone.icon;
+                    return (
+                      <div
+                        key={index}
+                        className="absolute flex items-center justify-center"
+                        style={{ 
+                          left: `${milestone.position}%`, 
+                          transform: 'translateX(-50%)',
+                          zIndex: 10
+                        }}
+                      >
+                        <div className={`w-12 h-12 rounded-full border-4 border-gray-900 flex items-center justify-center ${
+                          milestone.passed 
+                            ? 'bg-gray-800 shadow-lg shadow-red-500/30' 
+                            : 'bg-gray-700'
+                        }`}>
+                          <IconComponent 
+                            className={`w-6 h-6 ${milestone.color}`}
+                            strokeWidth={2.5}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               
               {/* Milestone Labels */}
-              <div className="relative">
-                {getMilestones().map((milestone, index) => (
-                  <div
-                    key={index}
-                    className="absolute flex flex-col items-center"
-                    style={{ left: `${milestone.position}%`, transform: 'translateX(-50%)' }}
-                  >
-                    <div className={`text-sm font-medium ${
-                      milestone.passed ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      {milestone.label}
+              <div className="relative mt-4">
+                <div className="flex justify-between items-center">
+                  {getMilestones().map((milestone, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col items-center"
+                      style={{ 
+                        width: `${100 / getMilestones().length}%`
+                      }}
+                    >
+                      <div className={`text-sm font-medium text-center ${
+                        milestone.passed ? 'text-white' : 'text-gray-400'
+                      }`}>
+                        {milestone.label}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
