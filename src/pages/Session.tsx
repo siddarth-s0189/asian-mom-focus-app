@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ const Session = () => {
   const [isBreak, setIsBreak] = useState(false);
   const [breakNumber, setBreakNumber] = useState(0);
   const [isCountUp, setIsCountUp] = useState(false);
+  const [showMomOverlay, setShowMomOverlay] = useState(false);
 
   useEffect(() => {
     // Load session config from localStorage
@@ -83,7 +83,15 @@ const Session = () => {
   };
 
   const handleStart = () => {
-    setIsRunning(true);
+    // Show the Asian mom overlay before starting the timer
+    setShowMomOverlay(true);
+    
+    // For now, we'll start the timer after a brief delay
+    // Later this will be controlled by the speech completion
+    setTimeout(() => {
+      setIsRunning(true);
+      setShowMomOverlay(false);
+    }, 3000);
   };
 
   const handlePause = () => {
@@ -175,9 +183,9 @@ const Session = () => {
               {/* AI Avatar */}
               <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 via-orange-500 to-red-600 p-1 shadow-xl shadow-red-500/30">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-pink-600 p-1 shadow-xl shadow-pink-500/30">
                     <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
-                      <div className="text-2xl">🤖</div>
+                      <div className="text-2xl">👩‍🦳</div>
                     </div>
                   </div>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center ${
@@ -346,6 +354,39 @@ const Session = () => {
             </div>
           </div>
         </div>
+
+        {/* Asian Mom Overlay */}
+        {showMomOverlay && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center">
+              {/* Large Asian Mom Avatar */}
+              <div className="mb-8">
+                <div className="w-48 h-48 mx-auto rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-pink-600 p-2 shadow-2xl shadow-pink-500/40 animate-pulse">
+                  <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
+                    <div className="text-8xl">👩‍🦳</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Speech Bubble */}
+              <div className="bg-white/10 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 max-w-2xl mx-auto">
+                <div className="text-2xl font-bold text-white mb-4">
+                  "Aiya! You better focus now, ah!"
+                </div>
+                <div className="text-gray-300 text-lg">
+                  No more wasting time! I'm watching you...
+                </div>
+              </div>
+              
+              {/* Speaking indicator */}
+              <div className="mt-6 flex justify-center space-x-2">
+                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce delay-100"></div>
+                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce delay-200"></div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );
