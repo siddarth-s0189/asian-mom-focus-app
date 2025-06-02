@@ -170,7 +170,7 @@ const Dashboard = () => {
                           max={360}
                           min={30}
                           step={15}
-                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-blue-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-blue-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-blue-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-blue-400 [&>span:last-child]:via-blue-500 [&>span:last-child]:to-blue-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-blue-500/30"
+                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-blue-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-blue-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-blue-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-blue-400 [&>span:last-child]:via-blue-500 [&>span:last-child]:to-purple-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-blue-500/30"
                         />
                         <div className="flex justify-between text-sm text-gray-300 mt-6 font-medium">
                           <span>30 min</span>
