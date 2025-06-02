@@ -170,8 +170,30 @@ const Dashboard = () => {
                           max={360}
                           min={30}
                           step={15}
-                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-blue-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-blue-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-blue-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-blue-400 [&>span:last-child]:via-blue-500 [&>span:last-child]:to-purple-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-blue-500/30"
+                          className="w-full"
                         />
+                        <style jsx>{`
+                          .w-full :global([role="slider"]) {
+                            background: white;
+                            border: 4px solid #3b82f6;
+                            width: 28px;
+                            height: 28px;
+                            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.5), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
+                            ring: 4px;
+                            ring-color: rgba(59, 130, 246, 0.2);
+                          }
+                          .w-full :global([data-orientation="horizontal"]) {
+                            height: 16px;
+                            background: rgba(55, 65, 81, 0.8);
+                            border-radius: 9999px;
+                            border: 1px solid rgb(75, 85, 99);
+                          }
+                          .w-full :global([data-orientation="horizontal"] > span) {
+                            background: linear-gradient(to right, #60a5fa, #3b82f6, #9333ea);
+                            height: 16px;
+                            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+                          }
+                        `}</style>
                         <div className="flex justify-between text-sm text-gray-300 mt-6 font-medium">
                           <span>30 min</span>
                           <span>6 hours</span>
@@ -280,8 +302,30 @@ const Dashboard = () => {
                           max={100}
                           min={0}
                           step={1}
-                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-orange-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-orange-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-orange-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-cyan-400 [&>span:last-child]:via-orange-500 [&>span:last-child]:to-red-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-orange-500/30"
+                          className="w-full focus-slider"
                         />
+                        <style jsx>{`
+                          .focus-slider :global([role="slider"]) {
+                            background: white;
+                            border: 4px solid #f97316;
+                            width: 28px;
+                            height: 28px;
+                            box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.5), 0 10px 10px -5px rgba(249, 115, 22, 0.04);
+                            ring: 4px;
+                            ring-color: rgba(249, 115, 22, 0.2);
+                          }
+                          .focus-slider :global([data-orientation="horizontal"]) {
+                            height: 16px;
+                            background: rgba(55, 65, 81, 0.8);
+                            border-radius: 9999px;
+                            border: 1px solid rgb(75, 85, 99);
+                          }
+                          .focus-slider :global([data-orientation="horizontal"] > span) {
+                            background: linear-gradient(to right, #06b6d4, #f97316, #dc2626);
+                            height: 16px;
+                            box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3);
+                          }
+                        `}</style>
                         <div className="flex justify-between text-sm mt-6">
                           <div className="text-center">
                             <div className="text-cyan-300 font-bold">Chill</div>
