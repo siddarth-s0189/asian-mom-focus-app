@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -171,9 +170,9 @@ const Dashboard = () => {
                           max={360}
                           min={30}
                           step={15}
-                          className="w-full [&>span:first-child]:h-3 [&>span:first-child]:bg-gray-700 [&>span:first-child]:rounded-full [&_[role=slider]]:bg-gradient-to-r [&_[role=slider]]:from-red-500 [&_[role=slider]]:to-red-600 [&_[role=slider]]:border-2 [&_[role=slider]]:border-red-400 [&_[role=slider]]:w-6 [&_[role=slider]]:h-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-red-500/50 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-red-500 [&>span:last-child]:to-red-600 [&>span:last-child]:h-3"
+                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-blue-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-blue-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-blue-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-blue-400 [&>span:last-child]:via-blue-500 [&>span:last-child]:to-blue-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-blue-500/30"
                         />
-                        <div className="flex justify-between text-sm text-gray-400 mt-6 font-medium">
+                        <div className="flex justify-between text-sm text-gray-300 mt-6 font-medium">
                           <span>30 min</span>
                           <span>6 hours</span>
                         </div>
@@ -189,14 +188,14 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <h3 className="text-xl font-bold text-white">Smart Breaks</h3>
-                            <p className="text-gray-400">Automatic rest periods to maintain peak performance</p>
+                            <p className="text-gray-300">Automatic rest periods to maintain peak performance</p>
                           </div>
                         </div>
                         <Switch
                           checked={allowBreaks}
                           onCheckedChange={setAllowBreaks}
                           disabled={duration[0] < 60}
-                          className="scale-125 data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-green-600 data-[state=unchecked]:bg-gray-600"
+                          className="scale-125 data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-green-600 data-[state=checked]:shadow-lg data-[state=checked]:shadow-green-500/50 data-[state=unchecked]:bg-gray-600 data-[state=unchecked]:border-gray-500"
                         />
                       </div>
                       
@@ -230,27 +229,27 @@ const Dashboard = () => {
                         <Button
                           variant={workplace === "this-device" ? "default" : "outline"}
                           onClick={() => setWorkplace("this-device")}
-                          className={`h-20 rounded-2xl transition-all duration-300 border-2 ${workplace === "this-device" 
+                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "this-device" 
                             ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105" 
-                            : "border-gray-500 bg-gray-800/50 text-gray-200 hover:bg-gray-700/70 hover:border-gray-400 hover:scale-105 shadow-lg"
+                            : "border-gray-400 bg-gray-700/70 text-white hover:bg-gray-600/90 hover:border-gray-300 hover:scale-105 shadow-lg shadow-gray-900/50"
                           }`}
                         >
                           <div className="text-center">
                             <div className="text-lg font-bold">This Device</div>
-                            <div className="text-sm opacity-80">Current setup</div>
+                            <div className="text-sm opacity-90">Current setup</div>
                           </div>
                         </Button>
                         <Button
                           variant={workplace === "other-device" ? "default" : "outline"}
                           onClick={() => setWorkplace("other-device")}
-                          className={`h-20 rounded-2xl transition-all duration-300 border-2 ${workplace === "other-device" 
+                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "other-device" 
                             ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105" 
-                            : "border-gray-500 bg-gray-800/50 text-gray-200 hover:bg-gray-700/70 hover:border-gray-400 hover:scale-105 shadow-lg"
+                            : "border-gray-400 bg-gray-700/70 text-white hover:bg-gray-600/90 hover:border-gray-300 hover:scale-105 shadow-lg shadow-gray-900/50"
                           }`}
                         >
                           <div className="text-center">
                             <div className="text-lg font-bold">Other Device</div>
-                            <div className="text-sm opacity-80">External setup</div>
+                            <div className="text-sm opacity-90">External setup</div>
                           </div>
                         </Button>
                       </div>
@@ -281,7 +280,7 @@ const Dashboard = () => {
                           max={100}
                           min={0}
                           step={1}
-                          className="w-full [&>span:first-child]:h-3 [&>span:first-child]:bg-gray-700 [&>span:first-child]:rounded-full [&_[role=slider]]:bg-gradient-to-r [&_[role=slider]]:from-orange-500 [&_[role=slider]]:to-red-600 [&_[role=slider]]:border-2 [&_[role=slider]]:border-orange-400 [&_[role=slider]]:w-6 [&_[role=slider]]:h-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-orange-500/50 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-cyan-500 [&>span:last-child]:via-orange-500 [&>span:last-child]:to-red-600 [&>span:last-child]:h-3"
+                          className="w-full [&>span:first-child]:h-4 [&>span:first-child]:bg-gray-700/80 [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-gray-600 [&_[role=slider]]:bg-white [&_[role=slider]]:border-4 [&_[role=slider]]:border-orange-500 [&_[role=slider]]:w-7 [&_[role=slider]]:h-7 [&_[role=slider]]:shadow-xl [&_[role=slider]]:shadow-orange-500/50 [&_[role=slider]]:ring-4 [&_[role=slider]]:ring-orange-500/20 [&>span:last-child]:bg-gradient-to-r [&>span:last-child]:from-cyan-400 [&>span:last-child]:via-orange-500 [&>span:last-child]:to-red-600 [&>span:last-child]:h-4 [&>span:last-child]:shadow-lg [&>span:last-child]:shadow-orange-500/30"
                         />
                         <div className="flex justify-between text-sm mt-6">
                           <div className="text-center">

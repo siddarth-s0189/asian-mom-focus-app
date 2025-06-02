@@ -1,8 +1,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const HeroSection = () => {
+  const { user } = useAuth();
+  
   return (
     <section className="min-h-[80vh] flex items-center justify-center px-6 py-20 bg-gradient-to-b from-black via-gray-900 to-black">
       <div className="max-w-4xl mx-auto text-center">
@@ -28,7 +31,7 @@ const HeroSection = () => {
           celebrates your wins.
         </p>
         
-        <Link to="/signup">
+        <Link to={user ? "/dashboard" : "/signup"}>
           <Button 
             size="lg" 
             className="relative bg-red-600 hover:bg-red-700 text-white px-12 py-6 text-xl font-semibold rounded-lg transition-all transform hover:scale-105 shadow-2xl animate-pulse"
@@ -37,12 +40,12 @@ const HeroSection = () => {
               animation: "glow 2s ease-in-out infinite alternate"
             }}
           >
-            Get Yelled At Now
+            {user ? "Go To Dashboard" : "Get Yelled At Now"}
           </Button>
         </Link>
         
         <p className="text-sm text-gray-500 mt-4">
-          Free to start • No credit card required
+          {user ? "Continue your focus journey" : "Free to start • No credit card required"}
         </p>
       </div>
       
