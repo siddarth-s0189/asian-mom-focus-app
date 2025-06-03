@@ -106,6 +106,8 @@ const Session = () => {
     setShowMomOverlay(true);
     try {
       await asianMomSpeech.speakFocusReminder();
+    } catch (error) {
+      console.error('Error during focus reminder speech:', error);
     } finally {
       setShowMomOverlay(false);
     }
@@ -115,6 +117,8 @@ const Session = () => {
     setShowMomOverlay(true);
     try {
       await asianMomSpeech.speakBreakReminder();
+    } catch (error) {
+      console.error('Error during break reminder speech:', error);
     } finally {
       setShowMomOverlay(false);
     }
@@ -140,6 +144,8 @@ const Session = () => {
       setShowMomOverlay(true);
       try {
         await asianMomSpeech.speakBreakEnd();
+      } catch (error) {
+        console.error('Error during break end speech:', error);
       } finally {
         setShowMomOverlay(false);
       }
@@ -157,6 +163,8 @@ const Session = () => {
         setShowMomOverlay(true);
         try {
           await asianMomSpeech.speakBreakStart();
+        } catch (error) {
+          console.error('Error during break start speech:', error);
         } finally {
           setShowMomOverlay(false);
         }
@@ -165,15 +173,14 @@ const Session = () => {
         setShowMomOverlay(true);
         try {
           await asianMomSpeech.speakSessionComplete();
-          // Wait a bit longer for session complete message
-          setTimeout(() => {
-            setShowMomOverlay(false);
-            navigate('/dashboard');
-          }, 2000);
         } catch (error) {
           console.error('Error during session complete speech:', error);
+        } finally {
           setShowMomOverlay(false);
-          navigate('/dashboard');
+          // Navigate after a short delay to ensure overlay is hidden
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 500);
         }
       }
     }
@@ -189,12 +196,10 @@ const Session = () => {
     try {
       // Asian mom speaks before starting timer
       await asianMomSpeech.speakSessionStart();
-      
-      // Hide overlay and start the timer after speech completes
-      setShowMomOverlay(false);
-      setIsRunning(true);
     } catch (error) {
-      console.error('Error during speech:', error);
+      console.error('Error during session start speech:', error);
+    } finally {
+      // Hide overlay and start the timer after speech completes
       setShowMomOverlay(false);
       setIsRunning(true);
     }

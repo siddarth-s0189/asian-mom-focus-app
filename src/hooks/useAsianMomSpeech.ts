@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface SpeechConfig {
   strictness: number; // 1-5 scale from onboarding
@@ -8,6 +8,7 @@ interface SpeechConfig {
 export const useAsianMomSpeech = (config: SpeechConfig) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
+  const voicesLoadedRef = useRef(false);
 
   // Asian mom phrases for different situations
   const phrases = {
@@ -56,95 +57,125 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
     return categoryPhrases[Math.floor(Math.random() * categoryPhrases.length)];
   };
 
-  const speak = useCallback((text: string): Promise<void> => {
+  const ensureVoicesLoaded = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
-      if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech first to prevent duplicates
-        speechSynthesis.cancel();
-        
-        // Wait a bit for the cancel to take effect
-        setTimeout(() => {
-          setIsSpeaking(true);
-          setCurrentMessage(text);
-          
-          const utterance = new SpeechSynthesisUtterance(text);
-          
-          // Force load voices and select Asian voice
-          let voices = speechSynthesis.getVoices();
-          
-          // If voices aren't loaded yet, wait for them
-          if (voices.length === 0) {
-            speechSynthesis.addEventListener('voiceschanged', () => {
-              voices = speechSynthesis.getVoices();
-              selectVoiceAndSpeak();
-            }, { once: true });
-          } else {
-            selectVoiceAndSpeak();
-          }
-          
-          function selectVoiceAndSpeak() {
-            // Try to find Asian voices in order of preference
-            const asianVoice = voices.find(voice => 
-              voice.lang.includes('zh-') || 
-              voice.lang.includes('ja-') || 
-              voice.lang.includes('ko-') ||
-              voice.name.toLowerCase().includes('karen') ||
-              voice.name.toLowerCase().includes('mei') ||
-              voice.name.toLowerCase().includes('ting') ||
-              voice.name.toLowerCase().includes('sin-ji') ||
-              voice.name.toLowerCase().includes('li-mu')
-            );
-            
-            if (asianVoice) {
-              utterance.voice = asianVoice;
-              console.log('Using Asian voice:', asianVoice.name);
-            } else {
-              console.log('No Asian voice found, using default');
-            }
-            
-            // Adjust speech characteristics for Asian mom persona
-            utterance.rate = 0.9; // Slightly slower for emphasis
-            utterance.pitch = 1.2; // Higher pitch for Asian female voice
-            utterance.volume = 0.8;
-            
-            utterance.onend = () => {
-              setIsSpeaking(false);
-              setCurrentMessage('');
-              resolve();
-            };
-            
-            utterance.onerror = (event) => {
-              console.error('Speech error:', event);
-              setIsSpeaking(false);
-              setCurrentMessage('');
-              resolve();
-            };
-            
-            // Ensure we're not already speaking before starting new speech
-            if (!speechSynthesis.speaking) {
-              speechSynthesis.speak(utterance);
-            } else {
-              // If still speaking, wait and try again
-              setTimeout(() => {
-                if (!speechSynthesis.speaking) {
-                  speechSynthesis.speak(utterance);
-                }
-              }, 100);
-            }
-          }
-        }, 100);
-      } else {
-        // Fallback if speech synthesis not available
+      if (voicesLoadedRef.current) {
+        resolve();
+        return;
+      }
+
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+        resolve();
+        return;
+      }
+
+      // Wait for voices to load
+      const handleVoicesChanged = () => {
+        const loadedVoices = speechSynthesis.getVoices();
+        if (loadedVoices.length > 0) {
+          voicesLoadedRef.current = true;
+          speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+          resolve();
+        }
+      };
+
+      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      
+      // Fallback timeout
+      setTimeout(() => {
+        voicesLoadedRef.current = true;
+        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        resolve();
+      }, 2000);
+    });
+  }, []);
+
+  const speak = useCallback((text: string): Promise<void> => {
+    return new Promise(async (resolve) => {
+      if (!('speechSynthesis' in window)) {
         console.log('Speech synthesis not available, showing message only');
         setCurrentMessage(text);
+        setIsSpeaking(true);
         setTimeout(() => {
           setIsSpeaking(false);
           setCurrentMessage('');
           resolve();
         }, 3000);
+        return;
+      }
+
+      try {
+        // Cancel any ongoing speech first
+        speechSynthesis.cancel();
+        
+        // Wait for voices to be loaded
+        await ensureVoicesLoaded();
+        
+        // Wait a bit for cancel to take effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        setIsSpeaking(true);
+        setCurrentMessage(text);
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Get available voices
+        const voices = speechSynthesis.getVoices();
+        console.log('Available voices:', voices.map(v => ({ name: v.name, lang: v.lang })));
+        
+        // Try to find Asian voices in order of preference
+        const asianVoice = voices.find(voice => 
+          voice.lang.includes('zh-') || 
+          voice.lang.includes('ja-') || 
+          voice.lang.includes('ko-') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.name.toLowerCase().includes('mei') ||
+          voice.name.toLowerCase().includes('ting') ||
+          voice.name.toLowerCase().includes('sin-ji') ||
+          voice.name.toLowerCase().includes('li-mu') ||
+          voice.name.toLowerCase().includes('kyoko') ||
+          voice.name.toLowerCase().includes('otoya')
+        );
+        
+        if (asianVoice) {
+          utterance.voice = asianVoice;
+          console.log('Using Asian voice:', asianVoice.name);
+        } else {
+          console.log('No Asian voice found, using default');
+        }
+        
+        // Adjust speech characteristics for Asian mom persona
+        utterance.rate = 0.9;
+        utterance.pitch = 1.2;
+        utterance.volume = 0.8;
+        
+        utterance.onend = () => {
+          console.log('Speech ended');
+          setIsSpeaking(false);
+          setCurrentMessage('');
+          resolve();
+        };
+        
+        utterance.onerror = (event) => {
+          console.error('Speech error:', event);
+          setIsSpeaking(false);
+          setCurrentMessage('');
+          resolve();
+        };
+        
+        // Start speaking
+        speechSynthesis.speak(utterance);
+        
+      } catch (error) {
+        console.error('Error in speak function:', error);
+        setIsSpeaking(false);
+        setCurrentMessage('');
+        resolve();
       }
     });
-  }, []);
+  }, [ensureVoicesLoaded]);
 
   const speakSessionStart = useCallback(() => {
     const phrase = getRandomPhrase('sessionStart');
