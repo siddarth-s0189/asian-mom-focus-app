@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -71,29 +70,25 @@ const Session = () => {
 
   // Separate useEffect for reminders - only when session is actually running
   useEffect(() => {
-    if (isRunning && !isBreak && sessionConfig && !showMomOverlay && !asianMomSpeech.isSpeaking) {
+    if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
       const reminderInterval = asianMomSpeech.getReminderInterval();
       
       reminderIntervalRef.current = setInterval(() => {
-        if (isRunning && !isBreak && !showMomOverlay && !asianMomSpeech.isSpeaking) {
-          setShowMomOverlay(true);
-          asianMomSpeech.speakFocusReminder().then(() => {
-            setTimeout(() => setShowMomOverlay(false), 1000);
-          });
+        if (isRunning && !isBreak && !showMomOverlay) {
+          handleFocusReminder();
         }
       }, reminderInterval);
 
       // Set break reminder (5 minutes before break for long sessions)
       if (sessionConfig.breaks && sessionConfig.duration >= 60) {
-        const breakReminderTime = (sessionConfig.duration * 60 - 5 * 60) * 1000;
-        breakReminderTimeoutRef.current = setTimeout(() => {
-          if (isRunning && !isBreak && !showMomOverlay && !asianMomSpeech.isSpeaking) {
-            setShowMomOverlay(true);
-            asianMomSpeech.speakBreakReminder().then(() => {
-              setTimeout(() => setShowMomOverlay(false), 1000);
-            });
-          }
-        }, breakReminderTime);
+        const timeUntilBreakReminder = Math.max(0, timeRemaining - 5 * 60) * 1000;
+        if (timeUntilBreakReminder > 0) {
+          breakReminderTimeoutRef.current = setTimeout(() => {
+            if (isRunning && !isBreak && !showMomOverlay) {
+              handleBreakReminder();
+            }
+          }, timeUntilBreakReminder);
+        }
       }
     }
 
@@ -105,7 +100,25 @@ const Session = () => {
         clearTimeout(breakReminderTimeoutRef.current);
       }
     };
-  }, [isRunning, isBreak, sessionConfig, showMomOverlay, asianMomSpeech.isSpeaking]);
+  }, [isRunning, isBreak, sessionConfig, showMomOverlay, timeRemaining]);
+
+  const handleFocusReminder = async () => {
+    setShowMomOverlay(true);
+    try {
+      await asianMomSpeech.speakFocusReminder();
+    } finally {
+      setShowMomOverlay(false);
+    }
+  };
+
+  const handleBreakReminder = async () => {
+    setShowMomOverlay(true);
+    try {
+      await asianMomSpeech.speakBreakReminder();
+    } finally {
+      setShowMomOverlay(false);
+    }
+  };
 
   const handleSessionComplete = async () => {
     // Clear any existing intervals first
@@ -114,11 +127,6 @@ const Session = () => {
     }
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
-    }
-
-    // Cancel any ongoing speech before starting new one
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
     }
 
     if (isBreak) {
@@ -130,8 +138,11 @@ const Session = () => {
       
       // Asian mom speaks when break ends
       setShowMomOverlay(true);
-      await asianMomSpeech.speakBreakEnd();
-      setTimeout(() => setShowMomOverlay(false), 1000);
+      try {
+        await asianMomSpeech.speakBreakEnd();
+      } finally {
+        setShowMomOverlay(false);
+      }
     } else {
       // Work session completed
       if (sessionConfig?.breaks && sessionConfig.duration >= 60) {
@@ -144,28 +155,33 @@ const Session = () => {
         
         // Asian mom speaks when break starts
         setShowMomOverlay(true);
-        await asianMomSpeech.speakBreakStart();
-        setTimeout(() => setShowMomOverlay(false), 1000);
+        try {
+          await asianMomSpeech.speakBreakStart();
+        } finally {
+          setShowMomOverlay(false);
+        }
       } else {
         // Session fully completed
         setShowMomOverlay(true);
-        await asianMomSpeech.speakSessionComplete();
-        setTimeout(() => {
+        try {
+          await asianMomSpeech.speakSessionComplete();
+          // Wait a bit longer for session complete message
+          setTimeout(() => {
+            setShowMomOverlay(false);
+            navigate('/dashboard');
+          }, 2000);
+        } catch (error) {
+          console.error('Error during session complete speech:', error);
           setShowMomOverlay(false);
           navigate('/dashboard');
-        }, 2000);
+        }
       }
     }
   };
 
   const handleStart = async () => {
     // Prevent multiple clicks
-    if (showMomOverlay || asianMomSpeech.isSpeaking) return;
-    
-    // Cancel any ongoing speech first
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-    }
+    if (showMomOverlay) return;
     
     // Show the Asian mom overlay and speak
     setShowMomOverlay(true);
@@ -193,10 +209,6 @@ const Session = () => {
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
     }
-    // Cancel any ongoing speech
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-    }
     setShowMomOverlay(false);
   };
 
@@ -208,10 +220,6 @@ const Session = () => {
     }
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
-    }
-    // Cancel any ongoing speech
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
     }
     setShowMomOverlay(false);
     navigate('/dashboard');
@@ -303,12 +311,12 @@ const Session = () => {
                     </div>
                   </div>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center ${
-                    isRunning || asianMomSpeech.isSpeaking
+                    isRunning || showMomOverlay
                       ? 'bg-green-500 animate-pulse' 
                       : 'bg-gray-600'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${
-                      isRunning || asianMomSpeech.isSpeaking ? 'bg-white' : 'bg-gray-400'
+                      isRunning || showMomOverlay ? 'bg-white' : 'bg-gray-400'
                     }`} />
                   </div>
                 </div>
@@ -370,7 +378,7 @@ const Session = () => {
                 {!isRunning ? (
                   <Button
                     onClick={handleStart}
-                    disabled={showMomOverlay || asianMomSpeech.isSpeaking}
+                    disabled={showMomOverlay}
                     className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30 disabled:opacity-50"
                   >
                     <Play className="w-6 h-6 mr-2" />
