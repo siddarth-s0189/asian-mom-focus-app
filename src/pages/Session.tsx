@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Play, Pause, Square, Coffee, RotateCcw, Clock, ArrowUp, ArrowDown, X, Triangle, Circle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
 
 interface SessionConfig {
   goal: string;
@@ -24,6 +25,14 @@ const Session = () => {
   const [breakNumber, setBreakNumber] = useState(0);
   const [isCountUp, setIsCountUp] = useState(false);
   const [showMomOverlay, setShowMomOverlay] = useState(false);
+  
+  const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const breakReminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize Asian mom speech with strictness from config
+  const asianMomSpeech = useAsianMomSpeech({ 
+    strictness: sessionConfig?.strictness || 3 
+  });
 
   useEffect(() => {
     // Load session config from localStorage
@@ -59,13 +68,55 @@ const Session = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
-  const handleSessionComplete = () => {
+  useEffect(() => {
+    if (isRunning && !isBreak && sessionConfig) {
+      const reminderInterval = asianMomSpeech.getReminderInterval();
+      
+      reminderIntervalRef.current = setInterval(() => {
+        if (isRunning && !isBreak) {
+          setShowMomOverlay(true);
+          asianMomSpeech.speakFocusReminder().then(() => {
+            setTimeout(() => setShowMomOverlay(false), 1000);
+          });
+        }
+      }, reminderInterval);
+
+      // Set break reminder (5 minutes before break for long sessions)
+      if (sessionConfig.breaks && sessionConfig.duration >= 60) {
+        const breakReminderTime = (sessionConfig.duration * 60 - 5 * 60) * 1000;
+        breakReminderTimeoutRef.current = setTimeout(() => {
+          if (isRunning && !isBreak) {
+            setShowMomOverlay(true);
+            asianMomSpeech.speakBreakReminder().then(() => {
+              setTimeout(() => setShowMomOverlay(false), 1000);
+            });
+          }
+        }, breakReminderTime);
+      }
+    }
+
+    return () => {
+      if (reminderIntervalRef.current) {
+        clearInterval(reminderIntervalRef.current);
+      }
+      if (breakReminderTimeoutRef.current) {
+        clearTimeout(breakReminderTimeoutRef.current);
+      }
+    };
+  }, [isRunning, isBreak, sessionConfig, asianMomSpeech]);
+
+  const handleSessionComplete = async () => {
     if (isBreak) {
       // Break completed, return to work
       setIsBreak(false);
       const workTime = sessionConfig!.duration * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
+      
+      // Asian mom speaks when break ends
+      setShowMomOverlay(true);
+      await asianMomSpeech.speakBreakEnd();
+      setTimeout(() => setShowMomOverlay(false), 1000);
     } else {
       // Work session completed
       if (sessionConfig?.breaks && sessionConfig.duration >= 60) {
@@ -75,31 +126,55 @@ const Session = () => {
         const breakTime = 10 * 60; // 10 minutes
         setTimeRemaining(breakTime);
         setTotalTime(breakTime);
+        
+        // Asian mom speaks when break starts
+        setShowMomOverlay(true);
+        await asianMomSpeech.speakBreakStart();
+        setTimeout(() => setShowMomOverlay(false), 1000);
       } else {
         // Session fully completed
-        navigate('/dashboard');
+        setShowMomOverlay(true);
+        await asianMomSpeech.speakSessionComplete();
+        setTimeout(() => {
+          setShowMomOverlay(false);
+          navigate('/dashboard');
+        }, 2000);
       }
     }
   };
 
-  const handleStart = () => {
-    // Show the Asian mom overlay before starting the timer
+  const handleStart = async () => {
+    // Show the Asian mom overlay and speak
     setShowMomOverlay(true);
     
-    // For now, we'll start the timer after a brief delay
-    // Later this will be controlled by the speech completion
-    setTimeout(() => {
-      setIsRunning(true);
-      setShowMomOverlay(false);
-    }, 3000);
+    // Asian mom speaks before starting timer
+    await asianMomSpeech.speakSessionStart();
+    
+    // Start the timer after speech
+    setIsRunning(true);
+    setShowMomOverlay(false);
   };
 
   const handlePause = () => {
     setIsRunning(false);
+    // Clear intervals when pausing
+    if (reminderIntervalRef.current) {
+      clearInterval(reminderIntervalRef.current);
+    }
+    if (breakReminderTimeoutRef.current) {
+      clearTimeout(breakReminderTimeoutRef.current);
+    }
   };
 
   const handleStop = () => {
     setIsRunning(false);
+    // Clear intervals when stopping
+    if (reminderIntervalRef.current) {
+      clearInterval(reminderIntervalRef.current);
+    }
+    if (breakReminderTimeoutRef.current) {
+      clearTimeout(breakReminderTimeoutRef.current);
+    }
     navigate('/dashboard');
   };
 
@@ -189,12 +264,12 @@ const Session = () => {
                     </div>
                   </div>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center ${
-                    isRunning 
+                    isRunning || asianMomSpeech.isSpeaking
                       ? 'bg-green-500 animate-pulse' 
                       : 'bg-gray-600'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${
-                      isRunning ? 'bg-white' : 'bg-gray-400'
+                      isRunning || asianMomSpeech.isSpeaking ? 'bg-white' : 'bg-gray-400'
                     }`} />
                   </div>
                 </div>
@@ -256,7 +331,8 @@ const Session = () => {
                 {!isRunning ? (
                   <Button
                     onClick={handleStart}
-                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30"
+                    disabled={asianMomSpeech.isSpeaking}
+                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30 disabled:opacity-50"
                   >
                     <Play className="w-6 h-6 mr-2" />
                     {timeRemaining === totalTime ? 'Start' : 'Resume'}
@@ -371,19 +447,21 @@ const Session = () => {
               {/* Speech Bubble */}
               <div className="bg-white/10 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 max-w-2xl mx-auto">
                 <div className="text-2xl font-bold text-white mb-4">
-                  "Aiya! You better focus now, ah!"
+                  "{asianMomSpeech.currentMessage || "Aiya! You better focus now, ah!"}"
                 </div>
                 <div className="text-gray-300 text-lg">
-                  No more wasting time! I'm watching you...
+                  {asianMomSpeech.isSpeaking ? "Speaking..." : "Get ready to focus!"}
                 </div>
               </div>
               
               {/* Speaking indicator */}
-              <div className="mt-6 flex justify-center space-x-2">
-                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce"></div>
-                <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce delay-100"></div>
-                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce delay-200"></div>
-              </div>
+              {asianMomSpeech.isSpeaking && (
+                <div className="mt-6 flex justify-center space-x-2">
+                  <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce"></div>
+                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce delay-100"></div>
+                  <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce delay-200"></div>
+                </div>
+              )}
             </div>
           </div>
         )}
