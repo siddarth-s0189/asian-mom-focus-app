@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -68,12 +69,13 @@ const Session = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
+  // Separate useEffect for reminders - only when session is actually running
   useEffect(() => {
-    if (isRunning && !isBreak && sessionConfig) {
+    if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
       const reminderInterval = asianMomSpeech.getReminderInterval();
       
       reminderIntervalRef.current = setInterval(() => {
-        if (isRunning && !isBreak) {
+        if (isRunning && !isBreak && !showMomOverlay) {
           setShowMomOverlay(true);
           asianMomSpeech.speakFocusReminder().then(() => {
             setTimeout(() => setShowMomOverlay(false), 1000);
@@ -85,7 +87,7 @@ const Session = () => {
       if (sessionConfig.breaks && sessionConfig.duration >= 60) {
         const breakReminderTime = (sessionConfig.duration * 60 - 5 * 60) * 1000;
         breakReminderTimeoutRef.current = setTimeout(() => {
-          if (isRunning && !isBreak) {
+          if (isRunning && !isBreak && !showMomOverlay) {
             setShowMomOverlay(true);
             asianMomSpeech.speakBreakReminder().then(() => {
               setTimeout(() => setShowMomOverlay(false), 1000);
@@ -103,9 +105,17 @@ const Session = () => {
         clearTimeout(breakReminderTimeoutRef.current);
       }
     };
-  }, [isRunning, isBreak, sessionConfig, asianMomSpeech]);
+  }, [isRunning, isBreak, sessionConfig, showMomOverlay]);
 
   const handleSessionComplete = async () => {
+    // Clear any existing intervals first
+    if (reminderIntervalRef.current) {
+      clearInterval(reminderIntervalRef.current);
+    }
+    if (breakReminderTimeoutRef.current) {
+      clearTimeout(breakReminderTimeoutRef.current);
+    }
+
     if (isBreak) {
       // Break completed, return to work
       setIsBreak(false);
@@ -144,15 +154,24 @@ const Session = () => {
   };
 
   const handleStart = async () => {
+    // Prevent multiple clicks
+    if (showMomOverlay) return;
+    
     // Show the Asian mom overlay and speak
     setShowMomOverlay(true);
     
-    // Asian mom speaks before starting timer
-    await asianMomSpeech.speakSessionStart();
-    
-    // Start the timer after speech
-    setIsRunning(true);
-    setShowMomOverlay(false);
+    try {
+      // Asian mom speaks before starting timer
+      await asianMomSpeech.speakSessionStart();
+      
+      // Hide overlay and start the timer after speech completes
+      setShowMomOverlay(false);
+      setIsRunning(true);
+    } catch (error) {
+      console.error('Error during speech:', error);
+      setShowMomOverlay(false);
+      setIsRunning(true);
+    }
   };
 
   const handlePause = () => {
@@ -331,7 +350,7 @@ const Session = () => {
                 {!isRunning ? (
                   <Button
                     onClick={handleStart}
-                    disabled={asianMomSpeech.isSpeaking}
+                    disabled={showMomOverlay || asianMomSpeech.isSpeaking}
                     className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30 disabled:opacity-50"
                   >
                     <Play className="w-6 h-6 mr-2" />
