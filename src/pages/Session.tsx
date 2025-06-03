@@ -71,11 +71,11 @@ const Session = () => {
 
   // Separate useEffect for reminders - only when session is actually running
   useEffect(() => {
-    if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
+    if (isRunning && !isBreak && sessionConfig && !showMomOverlay && !asianMomSpeech.isSpeaking) {
       const reminderInterval = asianMomSpeech.getReminderInterval();
       
       reminderIntervalRef.current = setInterval(() => {
-        if (isRunning && !isBreak && !showMomOverlay) {
+        if (isRunning && !isBreak && !showMomOverlay && !asianMomSpeech.isSpeaking) {
           setShowMomOverlay(true);
           asianMomSpeech.speakFocusReminder().then(() => {
             setTimeout(() => setShowMomOverlay(false), 1000);
@@ -87,7 +87,7 @@ const Session = () => {
       if (sessionConfig.breaks && sessionConfig.duration >= 60) {
         const breakReminderTime = (sessionConfig.duration * 60 - 5 * 60) * 1000;
         breakReminderTimeoutRef.current = setTimeout(() => {
-          if (isRunning && !isBreak && !showMomOverlay) {
+          if (isRunning && !isBreak && !showMomOverlay && !asianMomSpeech.isSpeaking) {
             setShowMomOverlay(true);
             asianMomSpeech.speakBreakReminder().then(() => {
               setTimeout(() => setShowMomOverlay(false), 1000);
@@ -105,7 +105,7 @@ const Session = () => {
         clearTimeout(breakReminderTimeoutRef.current);
       }
     };
-  }, [isRunning, isBreak, sessionConfig, showMomOverlay]);
+  }, [isRunning, isBreak, sessionConfig, showMomOverlay, asianMomSpeech.isSpeaking]);
 
   const handleSessionComplete = async () => {
     // Clear any existing intervals first
@@ -114,6 +114,11 @@ const Session = () => {
     }
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
+    }
+
+    // Cancel any ongoing speech before starting new one
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
     }
 
     if (isBreak) {
@@ -155,7 +160,12 @@ const Session = () => {
 
   const handleStart = async () => {
     // Prevent multiple clicks
-    if (showMomOverlay) return;
+    if (showMomOverlay || asianMomSpeech.isSpeaking) return;
+    
+    // Cancel any ongoing speech first
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
     
     // Show the Asian mom overlay and speak
     setShowMomOverlay(true);
@@ -183,6 +193,11 @@ const Session = () => {
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
     }
+    // Cancel any ongoing speech
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    setShowMomOverlay(false);
   };
 
   const handleStop = () => {
@@ -194,6 +209,11 @@ const Session = () => {
     if (breakReminderTimeoutRef.current) {
       clearTimeout(breakReminderTimeoutRef.current);
     }
+    // Cancel any ongoing speech
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    setShowMomOverlay(false);
     navigate('/dashboard');
   };
 

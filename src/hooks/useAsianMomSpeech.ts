@@ -59,53 +59,89 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
   const speak = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
       if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech
+        // Cancel any ongoing speech first to prevent duplicates
         speechSynthesis.cancel();
         
-        setIsSpeaking(true);
-        setCurrentMessage(text);
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Try to get an Asian-sounding voice or use default
-        const voices = speechSynthesis.getVoices();
-        const asianVoice = voices.find(voice => 
-          voice.lang.includes('zh') || 
-          voice.lang.includes('ja') || 
-          voice.lang.includes('ko') ||
-          voice.name.toLowerCase().includes('karen') ||
-          voice.name.toLowerCase().includes('mei')
-        );
-        
-        if (asianVoice) {
-          utterance.voice = asianVoice;
-        }
-        
-        // Adjust speech characteristics for Asian mom persona
-        utterance.rate = 0.9; // Slightly slower for emphasis
-        utterance.pitch = 1.1; // Slightly higher pitch
-        utterance.volume = 0.8;
-        
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          setCurrentMessage('');
-          resolve();
-        };
-        
-        utterance.onerror = () => {
-          setIsSpeaking(false);
-          setCurrentMessage('');
-          resolve();
-        };
-        
-        speechSynthesis.speak(utterance);
+        // Wait a bit for the cancel to take effect
+        setTimeout(() => {
+          setIsSpeaking(true);
+          setCurrentMessage(text);
+          
+          const utterance = new SpeechSynthesisUtterance(text);
+          
+          // Force load voices and select Asian voice
+          let voices = speechSynthesis.getVoices();
+          
+          // If voices aren't loaded yet, wait for them
+          if (voices.length === 0) {
+            speechSynthesis.addEventListener('voiceschanged', () => {
+              voices = speechSynthesis.getVoices();
+              selectVoiceAndSpeak();
+            }, { once: true });
+          } else {
+            selectVoiceAndSpeak();
+          }
+          
+          function selectVoiceAndSpeak() {
+            // Try to find Asian voices in order of preference
+            const asianVoice = voices.find(voice => 
+              voice.lang.includes('zh-') || 
+              voice.lang.includes('ja-') || 
+              voice.lang.includes('ko-') ||
+              voice.name.toLowerCase().includes('karen') ||
+              voice.name.toLowerCase().includes('mei') ||
+              voice.name.toLowerCase().includes('ting') ||
+              voice.name.toLowerCase().includes('sin-ji') ||
+              voice.name.toLowerCase().includes('li-mu')
+            );
+            
+            if (asianVoice) {
+              utterance.voice = asianVoice;
+              console.log('Using Asian voice:', asianVoice.name);
+            } else {
+              console.log('No Asian voice found, using default');
+            }
+            
+            // Adjust speech characteristics for Asian mom persona
+            utterance.rate = 0.9; // Slightly slower for emphasis
+            utterance.pitch = 1.2; // Higher pitch for Asian female voice
+            utterance.volume = 0.8;
+            
+            utterance.onend = () => {
+              setIsSpeaking(false);
+              setCurrentMessage('');
+              resolve();
+            };
+            
+            utterance.onerror = (event) => {
+              console.error('Speech error:', event);
+              setIsSpeaking(false);
+              setCurrentMessage('');
+              resolve();
+            };
+            
+            // Ensure we're not already speaking before starting new speech
+            if (!speechSynthesis.speaking) {
+              speechSynthesis.speak(utterance);
+            } else {
+              // If still speaking, wait and try again
+              setTimeout(() => {
+                if (!speechSynthesis.speaking) {
+                  speechSynthesis.speak(utterance);
+                }
+              }, 100);
+            }
+          }
+        }, 100);
       } else {
         // Fallback if speech synthesis not available
+        console.log('Speech synthesis not available, showing message only');
+        setCurrentMessage(text);
         setTimeout(() => {
           setIsSpeaking(false);
           setCurrentMessage('');
           resolve();
-        }, 2000);
+        }, 3000);
       }
     });
   }, []);
