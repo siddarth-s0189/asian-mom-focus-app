@@ -1,8 +1,8 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [currentStep, setCurrentStep] = useState(1);
 
   // Session configuration state
+  const [sessionTitle, setSessionTitle] = useState("");
   const [sessionGoal, setSessionGoal] = useState("");
   const [duration, setDuration] = useState([60]);
   const [allowBreaks, setAllowBreaks] = useState(true);
@@ -23,7 +24,7 @@ const Dashboard = () => {
   const [strictness, setStrictness] = useState([50]);
 
   const handleNext = () => {
-    if (currentStep === 1 && sessionGoal.trim()) {
+    if (currentStep === 1 && sessionTitle.trim() && sessionGoal.trim()) {
       setCurrentStep(2);
     }
   };
@@ -37,6 +38,7 @@ const Dashboard = () => {
   const handleStartSession = () => {
     // Store session config in localStorage for the session page
     const sessionConfig = {
+      title: sessionTitle,
       goal: sessionGoal,
       duration: duration[0],
       breaks: allowBreaks,
@@ -131,16 +133,48 @@ const Dashboard = () => {
                         </label>
                       </div>
                       
-                      <Textarea
-                        placeholder="Complete calculus homework chapter 7, write history essay introduction, study for chemistry exam..."
-                        value={sessionGoal}
-                        onChange={(e) => setSessionGoal(e.target.value)}
-                        className="bg-gray-800/60 border-gray-600/50 text-white placeholder:text-gray-400 min-h-[160px] text-lg resize-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 rounded-2xl backdrop-blur-sm transition-all duration-300 shadow-lg"
-                      />
+                      <div className="space-y-6">
+                        <div>
+                          <label className="block text-white text-lg font-medium mb-3">
+                            Session Title (max 10 words)
+                          </label>
+                          <Input
+                            placeholder="Study calculus chapter 7..."
+                            value={sessionTitle}
+                            onChange={(e) => {
+                              const words = e.target.value.split(' ').filter(word => word.length > 0);
+                              if (words.length <= 10) {
+                                setSessionTitle(e.target.value);
+                              }
+                            }}
+                            className="bg-gray-800/60 border-gray-600/50 text-white placeholder:text-gray-400 text-lg focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 rounded-2xl backdrop-blur-sm transition-all duration-300 shadow-lg h-14"
+                          />
+                          <div className="flex justify-between mt-2">
+                            <span className="text-sm text-gray-400">
+                              This will be displayed during your session
+                            </span>
+                            <span className={`text-sm ${sessionTitle.split(' ').filter(w => w.length > 0).length <= 10 ? 'text-gray-400' : 'text-red-400'}`}>
+                              {sessionTitle.split(' ').filter(w => w.length > 0).length}/10 words
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-white text-lg font-medium mb-3">
+                            Detailed Goals & Tasks
+                          </label>
+                          <Textarea
+                            placeholder="Complete calculus homework chapter 7 problems 1-15, write history essay introduction with thesis statement, study chemistry periodic table trends and practice balancing equations..."
+                            value={sessionGoal}
+                            onChange={(e) => setSessionGoal(e.target.value)}
+                            className="bg-gray-800/60 border-gray-600/50 text-white placeholder:text-gray-400 min-h-[160px] text-lg resize-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 rounded-2xl backdrop-blur-sm transition-all duration-300 shadow-lg"
+                          />
+                        </div>
+                      </div>
                       
                       <div className="flex items-center space-x-3 text-gray-400 bg-gray-800/30 rounded-xl p-4">
                         <Zap className="w-5 h-5 text-yellow-400" />
-                        <span className="text-sm">Be specific to maximize your focus and productivity</span>
+                        <span className="text-sm">Be specific in your detailed goals to maximize focus and productivity</span>
                       </div>
                     </div>
                   </div>
@@ -363,7 +397,7 @@ const Dashboard = () => {
                   {currentStep === 1 ? (
                     <Button
                       onClick={handleNext}
-                      disabled={!sessionGoal.trim()}
+                      disabled={!sessionTitle.trim() || !sessionGoal.trim()}
                       className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-12 py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-500/30 transition-all duration-300 transform hover:scale-105"
                     >
                       Continue
