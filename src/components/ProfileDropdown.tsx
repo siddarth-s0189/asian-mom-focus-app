@@ -1,102 +1,87 @@
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { cleanupAuthState } from "@/utils/authUtils";
-import { User, Settings, CreditCard, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ProfileDropdown = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    if (isLoggingOut) return;
-    
-    setIsLoggingOut(true);
     try {
-      cleanupAuthState();
-      
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log('Sign out error (continuing):', err);
-      }
-      
+      await supabase.auth.signOut();
       toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out.",
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
       });
-      
-      window.location.href = '/signin';
-    } catch (error: any) {
-      console.error('Sign out error:', error);
+    } catch (error) {
       toast({
-        title: "Sign Out Failed",
-        description: error.message || "Something went wrong.",
+        title: "Error signing out",
+        description: "Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoggingOut(false);
     }
   };
 
-  const getUserInitials = () => {
-    if (!user?.email) return "U";
-    return user.email.charAt(0).toUpperCase();
+  const getInitials = (email: string) => {
+    return email.substring(0, 2).toUpperCase();
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-red-600 text-white font-semibold">
-              {getUserInitials()}
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-red-600 text-white">
+              {user?.email ? getInitials(user.email) : "U"}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700" align="end" forceMount>
-        <div className="flex flex-col space-y-1 p-2">
-          <p className="text-sm font-medium leading-none text-white">{user?.user_metadata?.full_name || 'User'}</p>
-          <p className="text-xs leading-none text-gray-400">{user?.email}</p>
-        </div>
+      <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal text-white">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">Account</p>
+            <p className="text-xs leading-none text-gray-400">
+              {user?.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-gray-700" />
-        <DropdownMenuItem asChild className="text-white hover:bg-gray-800 cursor-pointer">
-          <Link to="/profile" className="flex items-center">
-            <User className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
+        <DropdownMenuItem 
+          className="text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer"
+          onClick={() => navigate("/profile")}
+        >
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="text-white hover:bg-gray-800 cursor-pointer">
+        <DropdownMenuItem 
+          className="text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer"
+          onClick={() => navigate("/settings")}
+        >
           <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem className="text-white hover:bg-gray-800 cursor-pointer">
-          <CreditCard className="mr-2 h-4 w-4" />
-          Price Plans
+          <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-gray-700" />
         <DropdownMenuItem 
-          className="text-red-400 hover:bg-gray-800 cursor-pointer"
+          className="text-red-400 hover:bg-red-900/50 hover:text-red-300 cursor-pointer"
           onClick={handleSignOut}
-          disabled={isLoggingOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          {isLoggingOut ? "Signing out..." : "Sign out"}
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

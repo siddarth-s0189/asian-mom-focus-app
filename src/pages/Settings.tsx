@@ -268,19 +268,19 @@ const Settings = () => {
                   <div className="space-y-3">
                     <Button
                       variant="outline"
-                      className="border-gray-500 text-gray-300 hover:bg-gray-700/50 w-full justify-start"
+                      className="border-gray-500 text-gray-300 hover:bg-gray-700/50 w-full justify-start bg-transparent"
                     >
                       View Privacy Policy
                     </Button>
                     <Button
                       variant="outline"
-                      className="border-gray-500 text-gray-300 hover:bg-gray-700/50 w-full justify-start"
+                      className="border-gray-500 text-gray-300 hover:bg-gray-700/50 w-full justify-start bg-transparent"
                     >
                       Download My Data
                     </Button>
                     <Button
                       variant="outline"
-                      className="border-red-500 text-red-400 hover:bg-red-500/10 w-full justify-start"
+                      className="border-red-500 text-red-400 hover:bg-red-500/10 w-full justify-start bg-transparent"
                     >
                       Delete Account
                     </Button>

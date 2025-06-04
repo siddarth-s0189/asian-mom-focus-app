@@ -13,6 +13,7 @@ interface SessionConfig {
   breaks: boolean;
   workplace: string;
   strictness: number;
+  title: string;
 }
 
 const Session = () => {
@@ -343,7 +344,7 @@ const Session = () => {
 
                 <div>
                   <h1 className="text-2xl font-bold text-white">
-                    {isBreak ? "Take a breather!" : sessionConfig.goal}
+                    {isBreak ? "Take a breather!" : sessionConfig.title}
                   </h1>
                   <div className="flex items-center mt-1">
                     {isBreak ? (
