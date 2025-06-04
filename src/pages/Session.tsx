@@ -25,18 +25,19 @@ const Session = () => {
   const [breakNumber, setBreakNumber] = useState(0);
   const [isCountUp, setIsCountUp] = useState(false);
   const [showMomOverlay, setShowMomOverlay] = useState(false);
-  
+
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const breakReminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSpeechTimestampRef = useRef<number>(Date.now()); // Track last speech time
 
   // Initialize Asian mom speech with strictness from config
-  const asianMomSpeech = useAsianMomSpeech({ 
-    strictness: sessionConfig?.strictness || 3 
+  const asianMomSpeech = useAsianMomSpeech({
+    strictness: sessionConfig?.strictness || 3,
   });
 
   useEffect(() => {
     // Load session config from localStorage
-    const config = localStorage.getItem('sessionConfig');
+    const config = localStorage.getItem("sessionConfig");
     if (config) {
       const parsedConfig: SessionConfig = JSON.parse(config);
       setSessionConfig(parsedConfig);
@@ -45,13 +46,13 @@ const Session = () => {
       setTotalTime(timeInSeconds);
     } else {
       // Redirect back to dashboard if no config found
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   }, [navigate]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
+
     if (isRunning && timeRemaining > 0) {
       interval = setInterval(() => {
         setTimeRemaining((prev) => {
@@ -68,14 +69,23 @@ const Session = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
+  // Helper: update last speech timestamp
+  const updateLastSpeechTimestamp = () => {
+    lastSpeechTimestampRef.current = Date.now();
+  };
+
   // Separate useEffect for reminders - only when session is actually running
   useEffect(() => {
     if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
       const reminderInterval = asianMomSpeech.getReminderInterval();
-      
+
       reminderIntervalRef.current = setInterval(() => {
         if (isRunning && !isBreak && !showMomOverlay) {
-          handleFocusReminder();
+          // Only trigger reminder if 10 mins (600,000ms) have elapsed since last speech
+          const now = Date.now();
+          if (now - lastSpeechTimestampRef.current > 10 * 60 * 1000) {
+            handleFocusReminder();
+          }
         }
       }, reminderInterval);
 
@@ -106,8 +116,9 @@ const Session = () => {
     setShowMomOverlay(true);
     try {
       await asianMomSpeech.speakFocusReminder();
+      updateLastSpeechTimestamp();
     } catch (error) {
-      console.error('Error during focus reminder speech:', error);
+      console.error("Error during focus reminder speech:", error);
     } finally {
       setShowMomOverlay(false);
     }
@@ -117,8 +128,9 @@ const Session = () => {
     setShowMomOverlay(true);
     try {
       await asianMomSpeech.speakBreakReminder();
+      updateLastSpeechTimestamp();
     } catch (error) {
-      console.error('Error during break reminder speech:', error);
+      console.error("Error during break reminder speech:", error);
     } finally {
       setShowMomOverlay(false);
     }
@@ -139,13 +151,14 @@ const Session = () => {
       const workTime = sessionConfig!.duration * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
-      
+
       // Asian mom speaks when break ends
       setShowMomOverlay(true);
       try {
         await asianMomSpeech.speakBreakEnd();
+        updateLastSpeechTimestamp();
       } catch (error) {
-        console.error('Error during break end speech:', error);
+        console.error("Error during break end speech:", error);
       } finally {
         setShowMomOverlay(false);
       }
@@ -154,17 +167,18 @@ const Session = () => {
       if (sessionConfig?.breaks && sessionConfig.duration >= 60) {
         // Start break
         setIsBreak(true);
-        setBreakNumber(prev => prev + 1);
+        setBreakNumber((prev) => prev + 1);
         const breakTime = 10 * 60; // 10 minutes
         setTimeRemaining(breakTime);
         setTotalTime(breakTime);
-        
+
         // Asian mom speaks when break starts
         setShowMomOverlay(true);
         try {
           await asianMomSpeech.speakBreakStart();
+          updateLastSpeechTimestamp();
         } catch (error) {
-          console.error('Error during break start speech:', error);
+          console.error("Error during break start speech:", error);
         } finally {
           setShowMomOverlay(false);
         }
@@ -173,13 +187,14 @@ const Session = () => {
         setShowMomOverlay(true);
         try {
           await asianMomSpeech.speakSessionComplete();
+          updateLastSpeechTimestamp();
         } catch (error) {
-          console.error('Error during session complete speech:', error);
+          console.error("Error during session complete speech:", error);
         } finally {
           setShowMomOverlay(false);
           // Navigate after a short delay to ensure overlay is hidden
           setTimeout(() => {
-            navigate('/dashboard');
+            navigate("/dashboard");
           }, 500);
         }
       }
@@ -189,15 +204,16 @@ const Session = () => {
   const handleStart = async () => {
     // Prevent multiple clicks
     if (showMomOverlay) return;
-    
+
     // Show the Asian mom overlay and speak
     setShowMomOverlay(true);
-    
+
     try {
       // Asian mom speaks before starting timer
       await asianMomSpeech.speakSessionStart();
+      updateLastSpeechTimestamp();
     } catch (error) {
-      console.error('Error during session start speech:', error);
+      console.error("Error during session start speech:", error);
     } finally {
       // Hide overlay and start the timer after speech completes
       setShowMomOverlay(false);
@@ -227,7 +243,7 @@ const Session = () => {
       clearTimeout(breakReminderTimeoutRef.current);
     }
     setShowMomOverlay(false);
-    navigate('/dashboard');
+    navigate("/dashboard");
   };
 
   const toggleTimerMode = () => {
@@ -238,11 +254,11 @@ const Session = () => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getDisplayTime = () => {
@@ -259,12 +275,12 @@ const Session = () => {
 
   const getMilestones = () => {
     const milestones = [
-      { 
-        label: "Start", 
-        position: 0, 
+      {
+        label: "Start",
+        position: 0,
         passed: getProgress() > 0,
         icon: X,
-        color: "text-green-400"
+        color: "text-green-400",
       },
     ];
 
@@ -277,17 +293,17 @@ const Session = () => {
           position,
           passed: getProgress() >= position,
           icon: i % 2 === 1 ? Triangle : Circle,
-          color: getProgress() >= position ? "text-blue-400" : "text-gray-500"
+          color: getProgress() >= position ? "text-blue-400" : "text-gray-500",
         });
       }
     }
 
-    milestones.push({ 
-      label: "End", 
-      position: 100, 
+    milestones.push({
+      label: "End",
+      position: 100,
       passed: getProgress() >= 100,
       icon: Square,
-      color: getProgress() >= 100 ? "text-red-400" : "text-gray-500"
+      color: getProgress() >= 100 ? "text-red-400" : "text-gray-500",
     });
 
     return milestones;
@@ -301,10 +317,9 @@ const Session = () => {
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
         <Navbar />
-        
+
         <div className="container mx-auto px-6 py-8">
           <div className="max-w-4xl mx-auto">
-            
             {/* Header with AI Avatar and Session Status */}
             <div className="flex items-center justify-between mb-8">
               {/* AI Avatar */}
@@ -316,16 +331,16 @@ const Session = () => {
                     </div>
                   </div>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-gray-900 flex items-center justify-center ${
-                    isRunning || showMomOverlay
-                      ? 'bg-green-500 animate-pulse' 
-                      : 'bg-gray-600'
-                  }`}>
+                      isRunning || showMomOverlay
+                        ? 'bg-green-500 animate-pulse' 
+                        : 'bg-gray-600'
+                    }`}>
                     <div className={`w-2 h-2 rounded-full ${
                       isRunning || showMomOverlay ? 'bg-white' : 'bg-gray-400'
                     }`} />
                   </div>
                 </div>
-                
+
                 <div>
                   <h1 className="text-2xl font-bold text-white">
                     {isBreak ? "Take a breather!" : sessionConfig.goal}
@@ -374,10 +389,10 @@ const Session = () => {
                   {getDisplayTime()}
                 </div>
                 <div className="text-gray-400 text-lg">
-                  {isCountUp ? 'Time Elapsed' : 'Time Remaining'}
+                  {isCountUp ? "Time Elapsed" : "Time Remaining"}
                 </div>
               </div>
-              
+
               {/* Control Buttons */}
               <div className="flex items-center justify-center space-x-4">
                 {!isRunning ? (
@@ -387,7 +402,7 @@ const Session = () => {
                     className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-xl shadow-red-500/30 disabled:opacity-50"
                   >
                     <Play className="w-6 h-6 mr-2" />
-                    {timeRemaining === totalTime ? 'Start' : 'Resume'}
+                    {timeRemaining === totalTime ? "Start" : "Resume"}
                   </Button>
                 ) : (
                   <Button
@@ -399,7 +414,7 @@ const Session = () => {
                     Pause
                   </Button>
                 )}
-                
+
                 <Button
                   onClick={handleStop}
                   variant="outline"
@@ -415,20 +430,20 @@ const Session = () => {
             <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-2xl font-bold text-white">
-                  {isBreak ? 'Break Progress' : 'Session Progress'}
+                  {isBreak ? "Break Progress" : "Session Progress"}
                 </h3>
                 <div className="text-3xl font-bold text-red-400">
                   {Math.round(getProgress())}%
                 </div>
               </div>
-              
+
               {/* Progress Bar with PS4 Controller Icons */}
               <div className="relative mb-12">
-                <Progress 
-                  value={getProgress()} 
+                <Progress
+                  value={getProgress()}
                   className="h-8 rounded-full"
                 />
-                
+
                 {/* PS4 Controller Icon Milestones */}
                 <div className="absolute top-0 left-0 right-0 h-8 flex items-center">
                   {getMilestones().map((milestone, index) => {
@@ -437,18 +452,20 @@ const Session = () => {
                       <div
                         key={index}
                         className="absolute flex items-center justify-center"
-                        style={{ 
-                          left: `${milestone.position}%`, 
-                          transform: 'translateX(-50%)',
-                          zIndex: 10
+                        style={{
+                          left: `${milestone.position}%`,
+                          transform: "translateX(-50%)",
+                          zIndex: 10,
                         }}
                       >
-                        <div className={`w-12 h-12 rounded-full border-4 border-gray-900 flex items-center justify-center ${
-                          milestone.passed 
-                            ? 'bg-gray-800 shadow-lg shadow-red-500/30' 
-                            : 'bg-gray-700'
-                        }`}>
-                          <IconComponent 
+                        <div
+                          className={`w-12 h-12 rounded-full border-4 border-gray-900 flex items-center justify-center ${
+                            milestone.passed
+                              ? "bg-gray-800 shadow-lg shadow-red-500/30"
+                              : "bg-gray-700"
+                          }`}
+                        >
+                          <IconComponent
                             className={`w-6 h-6 ${milestone.color}`}
                             strokeWidth={2.5}
                           />
@@ -458,7 +475,7 @@ const Session = () => {
                   })}
                 </div>
               </div>
-              
+
               {/* Milestone Labels */}
               <div className="relative mt-4">
                 <div className="flex justify-between items-center">
@@ -466,13 +483,15 @@ const Session = () => {
                     <div
                       key={index}
                       className="flex flex-col items-center"
-                      style={{ 
-                        width: `${100 / getMilestones().length}%`
+                      style={{
+                        width: `${100 / getMilestones().length}%`,
                       }}
                     >
-                      <div className={`text-sm font-medium text-center ${
-                        milestone.passed ? 'text-white' : 'text-gray-400'
-                      }`}>
+                      <div
+                        className={`text-sm font-medium text-center ${
+                          milestone.passed ? "text-white" : "text-gray-400"
+                        }`}
+                      >
                         {milestone.label}
                       </div>
                     </div>
@@ -495,7 +514,7 @@ const Session = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Speech Bubble */}
               <div className="bg-white/10 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 max-w-2xl mx-auto">
                 <div className="text-2xl font-bold text-white mb-4">
@@ -505,7 +524,7 @@ const Session = () => {
                   {asianMomSpeech.isSpeaking ? "Speaking..." : "Get ready to focus!"}
                 </div>
               </div>
-              
+
               {/* Speaking indicator */}
               {asianMomSpeech.isSpeaking && (
                 <div className="mt-6 flex justify-center space-x-2">

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 
 interface SpeechConfig {
@@ -82,7 +81,7 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
       };
 
       speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-      
+
       // Fallback timeout
       setTimeout(() => {
         voicesLoadedRef.current = true;
@@ -92,10 +91,10 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
     });
   }, []);
 
+  // --- FIX: Always resolve after a timeout if onend does not fire ---
   const speak = useCallback((text: string): Promise<void> => {
     return new Promise(async (resolve) => {
       if (!('speechSynthesis' in window)) {
-        console.log('Speech synthesis not available, showing message only');
         setCurrentMessage(text);
         setIsSpeaking(true);
         setTimeout(() => {
@@ -109,22 +108,20 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
       try {
         // Cancel any ongoing speech first
         speechSynthesis.cancel();
-        
+
         // Wait for voices to be loaded
         await ensureVoicesLoaded();
-        
+
         // Wait a bit for cancel to take effect
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         setIsSpeaking(true);
         setCurrentMessage(text);
-        
+
         const utterance = new SpeechSynthesisUtterance(text);
-        
+
         // Get available voices
         const voices = speechSynthesis.getVoices();
-        console.log('Available voices:', voices.map(v => ({ name: v.name, lang: v.lang })));
-        
         // Try to find Asian voices in order of preference
         const asianVoice = voices.find(voice => 
           voice.lang.includes('zh-') || 
@@ -138,38 +135,49 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
           voice.name.toLowerCase().includes('kyoko') ||
           voice.name.toLowerCase().includes('otoya')
         );
-        
         if (asianVoice) {
           utterance.voice = asianVoice;
-          console.log('Using Asian voice:', asianVoice.name);
-        } else {
-          console.log('No Asian voice found, using default');
         }
-        
+
         // Adjust speech characteristics for Asian mom persona
         utterance.rate = 0.9;
         utterance.pitch = 1.2;
         utterance.volume = 0.8;
-        
+
+        let finished = false;
+        const fallbackTimeout = setTimeout(() => {
+          if (!finished) {
+            finished = true;
+            setIsSpeaking(false);
+            setCurrentMessage('');
+            resolve();
+          }
+        }, 8000); // Max 8 seconds fallback
+
         utterance.onend = () => {
-          console.log('Speech ended');
-          setIsSpeaking(false);
-          setCurrentMessage('');
-          resolve();
+          if (!finished) {
+            finished = true;
+            clearTimeout(fallbackTimeout);
+            setIsSpeaking(false);
+            setCurrentMessage('');
+            resolve();
+          }
         };
-        
+
         utterance.onerror = (event) => {
-          console.error('Speech error:', event);
-          setIsSpeaking(false);
-          setCurrentMessage('');
-          resolve();
+          if (!finished) {
+            finished = true;
+            clearTimeout(fallbackTimeout);
+            setIsSpeaking(false);
+            setCurrentMessage('');
+            resolve();
+          }
         };
-        
+
         // Start speaking
         speechSynthesis.speak(utterance);
-        
+
       } catch (error) {
-        console.error('Error in speak function:', error);
         setIsSpeaking(false);
         setCurrentMessage('');
         resolve();
@@ -223,6 +231,6 @@ export const useAsianMomSpeech = (config: SpeechConfig) => {
     speakBreakEnd,
     speakFocusReminder,
     speakSessionComplete,
-    getReminderInterval
+    getReminderInterval,
   };
 };
