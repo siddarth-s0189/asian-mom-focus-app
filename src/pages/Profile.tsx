@@ -8,6 +8,18 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line } from "recharts";
 import Navbar from "@/components/Navbar";
 
+interface SessionData {
+  id: string;
+  userId: string;
+  sessionTitle: string;
+  goal: string;
+  duration: number; // in minutes
+  timeSpent: number; // in seconds
+  completed: boolean;
+  startedAt: string;
+  completedAt?: string;
+}
+
 const Profile = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -27,56 +39,171 @@ const Profile = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    // Generate mock study statistics
-    const generateMockData = () => {
-      const dailyData = [];
-      const weeklyData = [];
-      const monthlyData = [];
+    if (!user) return;
+
+    const calculateRealStats = () => {
+      // Get user sessions from localStorage
+      const userSessions: SessionData[] = JSON.parse(localStorage.getItem('userSessions') || '[]')
+        .filter((session: SessionData) => session.userId === user.id);
+
+      // Calculate total hours (from all sessions including incomplete ones)
+      const totalSeconds = userSessions.reduce((sum, session) => sum + session.timeSpent, 0);
+      const totalHours = totalSeconds / 3600;
+
+      // Calculate sessions completed (only completed sessions)
+      const completedSessions = userSessions.filter(session => session.completed);
+      const sessionsCompleted = completedSessions.length;
+
+      // Calculate current streak (consecutive days with completed sessions)
+      const currentStreak = calculateCurrentStreak(completedSessions);
 
       // Generate daily data for the last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dailyData.push({
-          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          hours: Math.random() * 8 + 1,
-          sessions: Math.floor(Math.random() * 5) + 1
-        });
-      }
+      const dailyData = generateDailyData(userSessions);
 
       // Generate weekly data for the last 4 weeks
-      for (let i = 3; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - (i * 7));
-        weeklyData.push({
-          week: `Week ${4 - i}`,
-          hours: Math.random() * 40 + 20,
-          sessions: Math.floor(Math.random() * 25) + 10
-        });
-      }
+      const weeklyData = generateWeeklyData(userSessions);
 
       // Generate monthly data for the last 6 months
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-      for (let i = 0; i < 6; i++) {
-        monthlyData.push({
-          month: months[i],
-          hours: Math.random() * 120 + 80,
-          sessions: Math.floor(Math.random() * 80) + 40
-        });
-      }
+      const monthlyData = generateMonthlyData(userSessions);
 
       setStudyStats({
-        totalHours: 234.5,
-        sessionsCompleted: 87,
-        currentStreak: 5,
+        totalHours: Math.round(totalHours * 10) / 10, // Round to 1 decimal place
+        sessionsCompleted,
+        currentStreak,
         dailyData,
         weeklyData,
         monthlyData
       });
     };
 
-    generateMockData();
-  }, []);
+    calculateRealStats();
+  }, [user]);
+
+  const calculateCurrentStreak = (completedSessions: SessionData[]) => {
+    if (completedSessions.length === 0) return 0;
+
+    // Group sessions by date
+    const sessionsByDate = new Map<string, SessionData[]>();
+    completedSessions.forEach(session => {
+      const date = new Date(session.completedAt!).toDateString();
+      if (!sessionsByDate.has(date)) {
+        sessionsByDate.set(date, []);
+      }
+      sessionsByDate.get(date)!.push(session);
+    });
+
+    // Get unique dates with sessions and sort them
+    const datesWithSessions = Array.from(sessionsByDate.keys())
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+    if (datesWithSessions.length === 0) return 0;
+
+    // Calculate streak from today backwards
+    let streak = 0;
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+    // Start checking from today or yesterday
+    let currentDate = sessionsByDate.has(today) ? today : 
+                     sessionsByDate.has(yesterday) ? yesterday : null;
+
+    if (!currentDate) return 0;
+
+    // Count consecutive days
+    for (let i = 0; i < datesWithSessions.length; i++) {
+      if (datesWithSessions[i] === currentDate) {
+        streak++;
+        // Move to the previous day
+        const prevDay = new Date(new Date(currentDate).getTime() - 24 * 60 * 60 * 1000);
+        currentDate = prevDay.toDateString();
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  };
+
+  const generateDailyData = (sessions: SessionData[]) => {
+    const dailyData = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateString = date.toDateString();
+      
+      const dailySessions = sessions.filter(session => {
+        const sessionDate = new Date(session.startedAt).toDateString();
+        return sessionDate === dateString;
+      });
+
+      const hours = dailySessions.reduce((sum, session) => sum + (session.timeSpent / 3600), 0);
+      const completedSessionsCount = dailySessions.filter(s => s.completed).length;
+
+      dailyData.push({
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        hours: Math.round(hours * 10) / 10,
+        sessions: completedSessionsCount
+      });
+    }
+
+    return dailyData;
+  };
+
+  const generateWeeklyData = (sessions: SessionData[]) => {
+    const weeklyData = [];
+    
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - (i * 7) - weekStart.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const weeklySessions = sessions.filter(session => {
+        const sessionDate = new Date(session.startedAt);
+        return sessionDate >= weekStart && sessionDate <= weekEnd;
+      });
+
+      const hours = weeklySessions.reduce((sum, session) => sum + (session.timeSpent / 3600), 0);
+      const completedSessionsCount = weeklySessions.filter(s => s.completed).length;
+
+      weeklyData.push({
+        week: `Week ${4 - i}`,
+        hours: Math.round(hours * 10) / 10,
+        sessions: completedSessionsCount
+      });
+    }
+
+    return weeklyData;
+  };
+
+  const generateMonthlyData = (sessions: SessionData[]) => {
+    const monthlyData = [];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date();
+      monthDate.setMonth(monthDate.getMonth() - i);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+      const monthlySessions = sessions.filter(session => {
+        const sessionDate = new Date(session.startedAt);
+        return sessionDate >= monthStart && sessionDate <= monthEnd;
+      });
+
+      const hours = monthlySessions.reduce((sum, session) => sum + (session.timeSpent / 3600), 0);
+      const completedSessionsCount = monthlySessions.filter(s => s.completed).length;
+
+      monthlyData.push({
+        month: months[monthDate.getMonth()],
+        hours: Math.round(hours * 10) / 10,
+        sessions: completedSessionsCount
+      });
+    }
+
+    return monthlyData;
+  };
 
   if (loading) {
     return (

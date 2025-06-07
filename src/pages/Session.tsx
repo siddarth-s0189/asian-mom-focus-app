@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SessionConfig {
   sessionTitle: string;
@@ -18,11 +19,24 @@ interface SessionConfig {
   strictness: number;
 }
 
+interface SessionData {
+  id: string;
+  userId: string;
+  sessionTitle: string;
+  goal: string;
+  duration: number; // in minutes
+  timeSpent: number; // in seconds
+  completed: boolean;
+  startedAt: string;
+  completedAt?: string;
+}
+
 const FOCUS_REMINDER_MIN_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const BREAK_BUFFER_TIME = 5 * 60; // 5 minutes in seconds
 
 const Session = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -34,6 +48,8 @@ const Session = () => {
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
   const [currentCycle, setCurrentCycle] = useState(0);
   const [totalCycles, setTotalCycles] = useState(0);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [totalTimeSpent, setTotalTimeSpent] = useState(0); // Total time spent in the session
 
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMomAudioTimestampRef = useRef<number>(Date.now());
@@ -41,9 +57,11 @@ const Session = () => {
 
   const momSpeech = useAsianMomSpeech();
 
-  // Calculate Pomodoro format based on session duration
+  // Calculate Pomodoro format based on session duration - UPDATED LOGIC
   const getPomodoroFormat = (durationMinutes: number) => {
-    return durationMinutes <= 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
+    // For 1hr (60min) and 1.5hr (90min) only: 25/5 format
+    // For 2hr (120min) and above: 50/10 format
+    return durationMinutes < 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
   };
 
   // Calculate break schedule for the session
@@ -69,6 +87,27 @@ const Session = () => {
     }
     
     return schedule;
+  };
+
+  // Save session data to localStorage
+  const saveSessionToStorage = (sessionData: SessionData) => {
+    const existingSessions = JSON.parse(localStorage.getItem('userSessions') || '[]');
+    const updatedSessions = [...existingSessions, sessionData];
+    localStorage.setItem('userSessions', JSON.stringify(updatedSessions));
+  };
+
+  // Update existing session in localStorage
+  const updateSessionInStorage = (sessionId: string, updates: Partial<SessionData>) => {
+    const existingSessions = JSON.parse(localStorage.getItem('userSessions') || '[]');
+    const updatedSessions = existingSessions.map((session: SessionData) => 
+      session.id === sessionId ? { ...session, ...updates } : session
+    );
+    localStorage.setItem('userSessions', JSON.stringify(updatedSessions));
+  };
+
+  // Generate unique session ID
+  const generateSessionId = () => {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   useEffect(() => {
@@ -102,6 +141,9 @@ const Session = () => {
           }
           return prev - 1;
         });
+        
+        // Update total time spent
+        setTotalTimeSpent(prev => prev + 1);
       }, 1000);
     }
 
@@ -239,7 +281,22 @@ const Session = () => {
           setShowMomOverlay(false);
         }
       } else {
-        // Session completed
+        // Session completed successfully
+        if (sessionStartTime && user) {
+          const sessionData: SessionData = {
+            id: generateSessionId(),
+            userId: user.id,
+            sessionTitle: sessionConfig!.sessionTitle,
+            goal: sessionConfig!.goal,
+            duration: sessionConfig!.duration,
+            timeSpent: totalTimeSpent,
+            completed: true,
+            startedAt: sessionStartTime.toISOString(),
+            completedAt: new Date().toISOString()
+          };
+          saveSessionToStorage(sessionData);
+        }
+
         setShowMomOverlay(true);
         try {
           await momSpeech.playSessionEnd();
@@ -256,6 +313,12 @@ const Session = () => {
 
   const handleStart = async () => {
     if (showMomOverlay) return;
+    
+    // Initialize session tracking on first start
+    if (!sessionStartTime) {
+      setSessionStartTime(new Date());
+    }
+    
     setShowMomOverlay(true);
     try {
       await momSpeech.playSessionStart();
@@ -288,6 +351,23 @@ const Session = () => {
     setShowStopConfirmation(false);
     setIsRunning(false);
     if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
+    
+    // Save session as incomplete (quit by user) but count time spent
+    if (sessionStartTime && user && sessionConfig) {
+      const sessionData: SessionData = {
+        id: generateSessionId(),
+        userId: user.id,
+        sessionTitle: sessionConfig.sessionTitle,
+        goal: sessionConfig.goal,
+        duration: sessionConfig.duration,
+        timeSpent: totalTimeSpent,
+        completed: false, // Session was quit, doesn't count as completed
+        startedAt: sessionStartTime.toISOString(),
+        completedAt: new Date().toISOString()
+      };
+      saveSessionToStorage(sessionData);
+    }
+    
     setShowMomOverlay(true);
     try {
       await momSpeech.playSessionQuit();
