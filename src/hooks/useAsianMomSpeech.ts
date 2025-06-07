@@ -1,236 +1,197 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState } from "react";
 
-interface SpeechConfig {
-  strictness: number; // 1-5 scale from onboarding
+// ---- AUDIO DATA ----
+// Each audio file is an object: { src, text }
+const sessionStartAudios = [
+  {
+    src: "/audio/session_start_1.mp3",
+    text: "Listen ah, I'm watching you! Better work hard or else.",
+  },
+  {
+    src: "/audio/session_start_2.mp3",
+    text: "Aiyah! You better focus now lah! No more wasting time.",
+  },
+  {
+    src: "/audio/session_start_3.mp3",
+    text: "Good! You finally start! Sit down and do your work properly now lah!",
+  },
+];
+const sessionEndAudios = [
+  {
+    src: "/audio/session_end_1.mp3",
+    text:
+      "Wah! You actually finished! Very good! But don't think you can rest until you become the doctor.",
+  },
+  {
+    src: "/audio/session_end_2.mp3",
+    text:
+      "Miracle! You finished something without me using the slippers!",
+  },
+  {
+    src: "/audio/session_end_3.mp3",
+    text:
+      "Okay lah, good job. At least you do something useful once in your life.",
+  },
+];
+const breakStartAudios = [
+  {
+    src: "/audio/break_start_1.mp3",
+    text: "Okay lah, take a break. But don’t lie down like you retire already!",
+  },
+  {
+    src: "/audio/break_start_2.mp3",
+    text: "Good job! You focus. But remember, only a short break, okay?",
+  },
+  {
+    src: "/audio/break_start_3.mp3",
+    text: "Now you take a quick break. I better not catch you scrolling on reels lah!",
+  },
+];
+const breakEndAudios = [
+  {
+    src: "/audio/break_end_1.mp3",
+    text: "Break over. What, you think this is a holiday? Back to work lah!",
+  },
+  {
+    src: "/audio/break_end_2.mp3",
+    text: "Break is over. No more acting like soft tofu, you lazy pig!",
+  },
+  {
+    src: "/audio/break_end_3.mp3",
+    text: "Look at your cousin, he takes no break and became a doctor! Go back to study!",
+  },
+];
+const sessionPauseAudios = [
+  {
+    src: "/audio/session_pause_1.mp3",
+    text: "Why you pause the session? Where you going lah? Better be for some emergency, ya!",
+  },
+];
+const sessionQuitAudios = [
+  {
+    src: "/audio/session_quit_1.mp3",
+    text: "Why you end the session? Where you going lah? Better be for some emergency!",
+  },
+];
+const focusRemindersAudios = [
+  {
+    src: "/audio/focus_reminder_1.mp3",
+    text: "Are you working, or just pretending to be busy?",
+  },
+  {
+    src: "/audio/focus_reminder_2.mp3",
+    text: "Eh, I hear TikTok sound. Don’t lie to me!",
+  },
+  {
+    src: "/audio/focus_reminder_3.mp3",
+    text: "Focus lah! Your neighbour already became doctor and you still a failure!",
+  },
+  {
+    src: "/audio/focus_reminder_4.mp3",
+    text: "I can see everything lah! You better be working hard.",
+  },
+  {
+    src: "/audio/focus_reminder_5.mp3",
+    text: "Stop being so lazy lah! I know you watch TikTok all day.",
+  },
+  {
+    src: "/audio/focus_reminder_6.mp3",
+    text: "You better be studying lah, or I'll bring the slippers.",
+  },
+  {
+    src: "/audio/focus_reminder_7.mp3",
+    text: "You want to end up like Uncle Roger? No job, only complain!",
+  },
+  {
+    src: "/audio/focus_reminder_8.mp3",
+    text: "Your cousin already finished medical school. You still sitting here!",
+  },
+  {
+    src: "/audio/focus_reminder_9.mp3",
+    text: "Why you stare at screen like zombie? Do something lah!",
+  },
+  {
+    src: "/audio/focus_reminder_10.mp3",
+    text: "You better focus now, or no dinner for you tonight!",
+  },
+  {
+    src: "/audio/focus_reminder_11.mp3",
+    text: "Don’t make me come there with the cane ah!",
+  },
+  {
+    src: "/audio/focus_reminder_12.mp3",
+    text: "I didn’t raise you to scroll Instagram the whole day!",
+  },
+];
+
+// Map category to array
+const audioMap = {
+  sessionStart: sessionStartAudios,
+  sessionEnd: sessionEndAudios,
+  breakStart: breakStartAudios,
+  breakEnd: breakEndAudios,
+  focusReminder: focusRemindersAudios,
+  sessionPause: sessionPauseAudios,
+  sessionQuit: sessionQuitAudios,
+} as const;
+
+export type MomAudioCategory = keyof typeof audioMap;
+
+interface CurrentAudioState {
+  text: string | null;
 }
 
-export const useAsianMomSpeech = (config: SpeechConfig) => {
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const voicesLoadedRef = useRef(false);
+export function useAsianMomSpeech() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudioState, setCurrentAudioState] = useState<CurrentAudioState>({
+    text: null,
+  });
 
-  // Asian mom phrases for different situations
-  const phrases = {
-    sessionStart: [
-      "Aiya! You better focus now, ah! No more wasting time!",
-      "Listen ah, I'm watching you! Better work hard or else!",
-      "Good you finally start! But don't think can slack off!",
-      "Now you show me you can focus! No playing around!"
-    ],
-    breakReminder: [
-      "Break time coming soon! You better finish what you doing!",
-      "Aiya, almost break time! Don't rush last minute!",
-      "Break coming in few minutes! Better wrap up properly!",
-      "You working hard? Break time soon, don't waste it!"
-    ],
-    breakStart: [
-      "Okay lah, take break! But don't take too long ah!",
-      "Rest first! But remember, only short break!",
-      "Good job! Now rest small small only!",
-      "Break time! But don't go play play!"
-    ],
-    breakEnd: [
-      "Break over! Back to work! No more resting!",
-      "Enough rest already! Time to work again!",
-      "Break finish! Now you better focus even more!",
-      "Back to work! I hope you recharged properly!"
-    ],
-    focusReminders: [
-      "Eh! You still focusing? Better not be distracted!",
-      "I'm watching you! No scrolling phone!",
-      "Focus focus! Don't let me catch you slacking!",
-      "Work properly! I can see everything!",
-      "Better be productive! No wasting time!"
-    ],
-    sessionComplete: [
-      "Wah! You actually finished! Very good!",
-      "Finally! You can focus when you want to!",
-      "Good job! I'm proud of you!",
-      "See? When you try hard, can succeed!",
-      "Excellent! You prove me wrong today!"
-    ]
-  };
+  async function playMomAudio(category: MomAudioCategory): Promise<void> {
+    const audioArr = audioMap[category];
+    if (!audioArr || audioArr.length === 0) return;
 
-  const getRandomPhrase = (category: keyof typeof phrases) => {
-    const categoryPhrases = phrases[category];
-    return categoryPhrases[Math.floor(Math.random() * categoryPhrases.length)];
-  };
+    // Pick a random audio file
+    const audioObj = audioArr[Math.floor(Math.random() * audioArr.length)];
+    const src = audioObj.src;
+    const text = audioObj.text;
 
-  const ensureVoicesLoaded = useCallback((): Promise<void> => {
+    setIsPlaying(true);
+    setCurrentAudioState({ text });
+
     return new Promise((resolve) => {
-      if (voicesLoadedRef.current) {
-        resolve();
-        return;
-      }
+      const audio = new window.Audio(src);
 
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        voicesLoadedRef.current = true;
+      const cleanup = () => {
+        setIsPlaying(false);
+        setCurrentAudioState({ text: null });
+        audio.removeEventListener("ended", cleanup);
+        audio.removeEventListener("error", cleanup);
         resolve();
-        return;
-      }
-
-      // Wait for voices to load
-      const handleVoicesChanged = () => {
-        const loadedVoices = speechSynthesis.getVoices();
-        if (loadedVoices.length > 0) {
-          voicesLoadedRef.current = true;
-          speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-          resolve();
-        }
       };
 
-      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      audio.addEventListener("ended", cleanup);
+      audio.addEventListener("error", cleanup);
 
-      // Fallback timeout
-      setTimeout(() => {
-        voicesLoadedRef.current = true;
-        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-        resolve();
-      }, 2000);
+      audio.play().catch(cleanup);
     });
-  }, []);
+  }
 
-  // --- FIX: Always resolve after a timeout if onend does not fire ---
-  const speak = useCallback((text: string): Promise<void> => {
-    return new Promise(async (resolve) => {
-      if (!('speechSynthesis' in window)) {
-        setCurrentMessage(text);
-        setIsSpeaking(true);
-        setTimeout(() => {
-          setIsSpeaking(false);
-          setCurrentMessage('');
-          resolve();
-        }, 3000);
-        return;
-      }
+  // Get current text for overlay
+  function getCurrentText(): string {
+    return currentAudioState.text || "";
+  }
 
-      try {
-        // Cancel any ongoing speech first
-        speechSynthesis.cancel();
-
-        // Wait for voices to be loaded
-        await ensureVoicesLoaded();
-
-        // Wait a bit for cancel to take effect
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        setIsSpeaking(true);
-        setCurrentMessage(text);
-
-        const utterance = new SpeechSynthesisUtterance(text);
-
-        // Get available voices
-        const voices = speechSynthesis.getVoices();
-        // Try to find Asian voices in order of preference
-        const asianVoice = voices.find(voice => 
-          voice.lang.includes('zh-') || 
-          voice.lang.includes('ja-') || 
-          voice.lang.includes('ko-') ||
-          voice.name.toLowerCase().includes('karen') ||
-          voice.name.toLowerCase().includes('mei') ||
-          voice.name.toLowerCase().includes('ting') ||
-          voice.name.toLowerCase().includes('sin-ji') ||
-          voice.name.toLowerCase().includes('li-mu') ||
-          voice.name.toLowerCase().includes('kyoko') ||
-          voice.name.toLowerCase().includes('otoya')
-        );
-        if (asianVoice) {
-          utterance.voice = asianVoice;
-        }
-
-        // Adjust speech characteristics for Asian mom persona
-        utterance.rate = 0.9;
-        utterance.pitch = 1.2;
-        utterance.volume = 0.8;
-
-        let finished = false;
-        const fallbackTimeout = setTimeout(() => {
-          if (!finished) {
-            finished = true;
-            setIsSpeaking(false);
-            setCurrentMessage('');
-            resolve();
-          }
-        }, 8000); // Max 8 seconds fallback
-
-        utterance.onend = () => {
-          if (!finished) {
-            finished = true;
-            clearTimeout(fallbackTimeout);
-            setIsSpeaking(false);
-            setCurrentMessage('');
-            resolve();
-          }
-        };
-
-        utterance.onerror = (event) => {
-          if (!finished) {
-            finished = true;
-            clearTimeout(fallbackTimeout);
-            setIsSpeaking(false);
-            setCurrentMessage('');
-            resolve();
-          }
-        };
-
-        // Start speaking
-        speechSynthesis.speak(utterance);
-
-      } catch (error) {
-        setIsSpeaking(false);
-        setCurrentMessage('');
-        resolve();
-      }
-    });
-  }, [ensureVoicesLoaded]);
-
-  const speakSessionStart = useCallback(() => {
-    const phrase = getRandomPhrase('sessionStart');
-    return speak(phrase);
-  }, [speak]);
-
-  const speakBreakReminder = useCallback(() => {
-    const phrase = getRandomPhrase('breakReminder');
-    return speak(phrase);
-  }, [speak]);
-
-  const speakBreakStart = useCallback(() => {
-    const phrase = getRandomPhrase('breakStart');
-    return speak(phrase);
-  }, [speak]);
-
-  const speakBreakEnd = useCallback(() => {
-    const phrase = getRandomPhrase('breakEnd');
-    return speak(phrase);
-  }, [speak]);
-
-  const speakFocusReminder = useCallback(() => {
-    const phrase = getRandomPhrase('focusReminders');
-    return speak(phrase);
-  }, [speak]);
-
-  const speakSessionComplete = useCallback(() => {
-    const phrase = getRandomPhrase('sessionComplete');
-    return speak(phrase);
-  }, [speak]);
-
-  // Calculate reminder frequency based on strictness (1-5 scale)
-  const getReminderInterval = useCallback(() => {
-    // Strictness 1: every 20 minutes, Strictness 5: every 5 minutes
-    const intervals = [20, 15, 12, 8, 5];
-    return intervals[config.strictness - 1] * 60 * 1000; // Convert to milliseconds
-  }, [config.strictness]);
-
+  // Per-category play functions
   return {
-    isSpeaking,
-    currentMessage,
-    speakSessionStart,
-    speakBreakReminder,
-    speakBreakStart,
-    speakBreakEnd,
-    speakFocusReminder,
-    speakSessionComplete,
-    getReminderInterval,
+    isPlaying,
+    getCurrentText,
+    playSessionStart: () => playMomAudio("sessionStart"),
+    playSessionEnd: () => playMomAudio("sessionEnd"),
+    playBreakStart: () => playMomAudio("breakStart"),
+    playBreakEnd: () => playMomAudio("breakEnd"),
+    playFocusReminder: () => playMomAudio("focusReminder"),
+    playSessionPause: () => playMomAudio("sessionPause"),
+    playSessionQuit: () => playMomAudio("sessionQuit"),
   };
-};
+}
