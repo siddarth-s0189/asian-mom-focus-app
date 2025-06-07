@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Play, Pause, Square, Coffee, ArrowUp, ArrowDown, X, Triangle, Circle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
 
 interface SessionConfig {
-  shortDesc: string; // <--- Make sure this is set in your app when user creates session
+  sessionTitle: string;
   goal: string;
   duration: number;
   breaks: boolean;
@@ -17,6 +18,7 @@ interface SessionConfig {
 }
 
 const FOCUS_REMINDER_MIN_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const BREAK_BUFFER_TIME = 5 * 60; // 5 minutes in seconds
 
 const Session = () => {
   const navigate = useNavigate();
@@ -28,9 +30,11 @@ const Session = () => {
   const [breakNumber, setBreakNumber] = useState(0);
   const [isCountUp, setIsCountUp] = useState(false);
   const [showMomOverlay, setShowMomOverlay] = useState(false);
+  const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMomAudioTimestampRef = useRef<number>(Date.now());
+  const nextReminderTimeRef = useRef<number>(0);
 
   const momSpeech = useAsianMomSpeech();
 
@@ -66,22 +70,73 @@ const Session = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
-  // Focus reminder logic (no break reminders)
+  // Get reminder frequency based on strictness
+  const getReminderFrequency = (strictness: number) => {
+    switch (strictness) {
+      case 1: // chill
+        return 1;
+      case 2: // medium
+        return 2;
+      case 3: // insane
+        return 3;
+      default:
+        return 2;
+    }
+  };
+
+  // Calculate next reminder time with randomization
+  const calculateNextReminderTime = (strictness: number, currentTime: number) => {
+    const frequency = getReminderFrequency(strictness);
+    const baseInterval = (30 * 60) / frequency; // 30 minutes divided by frequency
+    const randomOffset = (Math.random() - 0.5) * 4 * 60; // +/- 2 minutes in seconds
+    return currentTime + baseInterval + randomOffset;
+  };
+
+  // Check if we're near a break
+  const isNearBreak = () => {
+    if (!sessionConfig?.breaks || isBreak) return false;
+    
+    const timeElapsed = totalTime - timeRemaining;
+    const sessionHours = Math.floor(sessionConfig.duration / 60);
+    
+    for (let i = 1; i <= sessionHours; i++) {
+      const breakTime = i * 60 * 60; // Break every hour
+      const timeTillBreak = breakTime - timeElapsed;
+      
+      if (Math.abs(timeTillBreak) <= BREAK_BUFFER_TIME) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Focus reminder logic with improved timing and break avoidance
   useEffect(() => {
     if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
-      const reminderInterval =
-        [20, 15, 12, 8, 5][(sessionConfig.strictness || 3) - 1] * 60 * 1000;
-
-      reminderIntervalRef.current = setInterval(() => {
+      const checkReminder = () => {
+        const currentTime = Date.now() / 1000; // Convert to seconds
+        const timeElapsed = totalTime - timeRemaining;
+        
+        // Don't send reminders if we're near a break or during breaks
+        if (isNearBreak()) return;
+        
+        // Initialize next reminder time if not set
+        if (nextReminderTimeRef.current === 0) {
+          nextReminderTimeRef.current = calculateNextReminderTime(sessionConfig.strictness, timeElapsed);
+        }
+        
+        // Check if it's time for a reminder
         if (
-          isRunning &&
-          !isBreak &&
-          !showMomOverlay &&
+          timeElapsed >= nextReminderTimeRef.current &&
           Date.now() - lastMomAudioTimestampRef.current > FOCUS_REMINDER_MIN_INTERVAL
         ) {
           handleFocusReminder();
+          // Schedule next reminder
+          nextReminderTimeRef.current = calculateNextReminderTime(sessionConfig.strictness, timeElapsed);
         }
-      }, reminderInterval);
+      };
+
+      reminderIntervalRef.current = setInterval(checkReminder, 30000); // Check every 30 seconds
     }
 
     return () => {
@@ -89,7 +144,6 @@ const Session = () => {
         clearInterval(reminderIntervalRef.current);
       }
     };
-    // eslint-disable-next-line
   }, [isRunning, isBreak, sessionConfig, showMomOverlay, timeRemaining]);
 
   const updateLastMomAudioTimestamp = () => {
@@ -115,6 +169,7 @@ const Session = () => {
       const workTime = sessionConfig!.duration * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
+      nextReminderTimeRef.current = 0; // Reset reminder timing
 
       setShowMomOverlay(true);
       try {
@@ -163,6 +218,8 @@ const Session = () => {
     } finally {
       setShowMomOverlay(false);
       setIsRunning(true);
+      // Initialize reminder timing
+      nextReminderTimeRef.current = 0;
     }
   };
 
@@ -178,7 +235,12 @@ const Session = () => {
     }
   };
 
-  const handleStop = async () => {
+  const handleStopClick = () => {
+    setShowStopConfirmation(true);
+  };
+
+  const handleStopConfirm = async () => {
+    setShowStopConfirmation(false);
     setIsRunning(false);
     if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
     setShowMomOverlay(true);
@@ -189,6 +251,10 @@ const Session = () => {
       setShowMomOverlay(false);
       navigate("/dashboard");
     }
+  };
+
+  const handleStopCancel = () => {
+    setShowStopConfirmation(false);
   };
 
   const toggleTimerMode = () => {
@@ -292,9 +358,8 @@ const Session = () => {
                 </div>
 
                 <div>
-                  {/* Use the <10 word short description from session config */}
                   <h1 className="text-2xl font-bold text-white">
-                    {sessionConfig.shortDesc}
+                    {sessionConfig.sessionTitle}
                   </h1>
                   <div className="flex items-center mt-1">
                     {isBreak ? (
@@ -367,7 +432,7 @@ const Session = () => {
                 )}
 
                 <Button
-                  onClick={handleStop}
+                  onClick={handleStopClick}
                   variant="outline"
                   className="border-red-600/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:border-red-500 px-8 py-4 text-lg rounded-xl"
                 >
@@ -444,6 +509,38 @@ const Session = () => {
             </div>
           </div>
         </div>
+
+        {/* Stop Confirmation Dialog */}
+        <Dialog open={showStopConfirmation} onOpenChange={setShowStopConfirmation}>
+          <DialogContent className="bg-gray-800/90 backdrop-blur-xl border border-gray-700/50 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-center">
+                Are you sure you want to stop?
+              </DialogTitle>
+            </DialogHeader>
+            <div className="text-center py-4">
+              <div className="text-6xl mb-4">👩‍🦳</div>
+              <p className="text-gray-300">
+                Your Asian mom will have something to say about this...
+              </p>
+            </div>
+            <DialogFooter className="flex justify-center space-x-4">
+              <Button
+                onClick={handleStopCancel}
+                variant="outline"
+                className="border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-600/70"
+              >
+                Go back to session
+              </Button>
+              <Button
+                onClick={handleStopConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Yes, stop session
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Asian Mom Overlay */}
         {showMomOverlay && (
