@@ -38,7 +38,7 @@ const Dashboard = () => {
   const handleStartSession = () => {
     // Store session config in localStorage for the session page
     const sessionConfig = {
-      title: sessionTitle,
+      sessionTitle,
       goal: sessionGoal,
       duration: duration[0],
       breaks: allowBreaks,
