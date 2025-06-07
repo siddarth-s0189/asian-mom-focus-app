@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,12 +32,44 @@ const Session = () => {
   const [isCountUp, setIsCountUp] = useState(false);
   const [showMomOverlay, setShowMomOverlay] = useState(false);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
+  const [currentCycle, setCurrentCycle] = useState(0);
+  const [totalCycles, setTotalCycles] = useState(0);
 
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMomAudioTimestampRef = useRef<number>(Date.now());
   const nextReminderTimeRef = useRef<number>(0);
 
   const momSpeech = useAsianMomSpeech();
+
+  // Calculate Pomodoro format based on session duration
+  const getPomodoroFormat = (durationMinutes: number) => {
+    return durationMinutes <= 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
+  };
+
+  // Calculate break schedule for the session
+  const getBreakSchedule = (sessionConfig: SessionConfig) => {
+    if (!sessionConfig.breaks || sessionConfig.duration < 60) return [];
+    
+    const format = getPomodoroFormat(sessionConfig.duration);
+    const cycleLength = format.work + format.break;
+    const totalMinutes = sessionConfig.duration;
+    const fullCycles = Math.floor(totalMinutes / cycleLength);
+    
+    const schedule = [];
+    for (let i = 0; i < fullCycles; i++) {
+      // Don't add the last break if it would be at the very end
+      const breakStartTime = (i + 1) * format.work + i * format.break;
+      if (breakStartTime + format.break < totalMinutes) {
+        schedule.push({
+          startTime: breakStartTime,
+          duration: format.break,
+          number: i + 1
+        });
+      }
+    }
+    
+    return schedule;
+  };
 
   useEffect(() => {
     const config = localStorage.getItem("sessionConfig");
@@ -46,6 +79,11 @@ const Session = () => {
       const timeInSeconds = parsedConfig.duration * 60;
       setTimeRemaining(timeInSeconds);
       setTotalTime(timeInSeconds);
+      
+      // Calculate total cycles for progress tracking
+      const format = getPomodoroFormat(parsedConfig.duration);
+      const cycles = Math.ceil(parsedConfig.duration / (format.work + format.break));
+      setTotalCycles(cycles);
     } else {
       navigate("/dashboard");
     }
@@ -70,18 +108,11 @@ const Session = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
-  // Get reminder frequency based on strictness
+  // Get reminder frequency based on strictness (per 30 minutes)
   const getReminderFrequency = (strictness: number) => {
-    switch (strictness) {
-      case 1: // chill
-        return 1;
-      case 2: // medium
-        return 2;
-      case 3: // insane
-        return 3;
-      default:
-        return 2;
-    }
+    if (strictness < 33) return 1; // chill
+    if (strictness < 67) return 2; // medium
+    return 3; // insane
   };
 
   // Calculate next reminder time with randomization
@@ -92,21 +123,28 @@ const Session = () => {
     return currentTime + baseInterval + randomOffset;
   };
 
-  // Check if we're near a break
+  // Check if we're near a break (5 minutes before or after, or during break)
   const isNearBreak = () => {
-    if (!sessionConfig?.breaks || isBreak) return false;
+    if (!sessionConfig?.breaks || !sessionConfig) return false;
+    
+    if (isBreak) return true; // During break
     
     const timeElapsed = totalTime - timeRemaining;
-    const sessionHours = Math.floor(sessionConfig.duration / 60);
+    const breakSchedule = getBreakSchedule(sessionConfig);
     
-    for (let i = 1; i <= sessionHours; i++) {
-      const breakTime = i * 60 * 60; // Break every hour
-      const timeTillBreak = breakTime - timeElapsed;
+    for (const breakInfo of breakSchedule) {
+      const breakStartTime = breakInfo.startTime * 60; // Convert to seconds
+      const breakEndTime = breakStartTime + (breakInfo.duration * 60);
       
-      if (Math.abs(timeTillBreak) <= BREAK_BUFFER_TIME) {
+      // Check if within 5 minutes before or after break
+      if (
+        Math.abs(timeElapsed - breakStartTime) <= BREAK_BUFFER_TIME ||
+        Math.abs(timeElapsed - breakEndTime) <= BREAK_BUFFER_TIME
+      ) {
         return true;
       }
     }
+    
     return false;
   };
 
@@ -114,7 +152,6 @@ const Session = () => {
   useEffect(() => {
     if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
       const checkReminder = () => {
-        const currentTime = Date.now() / 1000; // Convert to seconds
         const timeElapsed = totalTime - timeRemaining;
         
         // Don't send reminders if we're near a break or during breaks
@@ -166,9 +203,11 @@ const Session = () => {
     if (isBreak) {
       // Break completed, return to work
       setIsBreak(false);
-      const workTime = sessionConfig!.duration * 60;
+      const format = getPomodoroFormat(sessionConfig!.duration);
+      const workTime = format.work * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
+      setCurrentCycle(prev => prev + 1);
       nextReminderTimeRef.current = 0; // Reset reminder timing
 
       setShowMomOverlay(true);
@@ -179,11 +218,16 @@ const Session = () => {
         setShowMomOverlay(false);
       }
     } else {
-      if (sessionConfig?.breaks && sessionConfig.duration >= 60) {
+      // Check if it's time for a break
+      const timeElapsed = (sessionConfig!.duration * 60) - timeRemaining;
+      const breakSchedule = getBreakSchedule(sessionConfig!);
+      const nextBreak = breakSchedule.find(b => Math.abs((b.startTime * 60) - timeElapsed) < 30);
+      
+      if (nextBreak && sessionConfig?.breaks) {
         // Start break
         setIsBreak(true);
-        setBreakNumber((prev) => prev + 1);
-        const breakTime = 10 * 60;
+        setBreakNumber(nextBreak.number);
+        const breakTime = nextBreak.duration * 60;
         setTimeRemaining(breakTime);
         setTotalTime(breakTime);
 
@@ -195,6 +239,7 @@ const Session = () => {
           setShowMomOverlay(false);
         }
       } else {
+        // Session completed
         setShowMomOverlay(true);
         try {
           await momSpeech.playSessionEnd();
@@ -286,6 +331,8 @@ const Session = () => {
   };
 
   const getMilestones = () => {
+    if (!sessionConfig) return [];
+    
     const milestones = [
       {
         label: "Start",
@@ -296,20 +343,18 @@ const Session = () => {
       },
     ];
 
-    if (sessionConfig?.breaks && !isBreak) {
-      const sessionHours = Math.floor(sessionConfig.duration / 60);
-      for (let i = 1; i <= sessionHours; i++) {
-        const position = (i * 60 * 60) / totalTime * 100;
+    if (sessionConfig.breaks && !isBreak) {
+      const breakSchedule = getBreakSchedule(sessionConfig);
+      breakSchedule.forEach((breakInfo, index) => {
+        const position = (breakInfo.startTime * 60) / (sessionConfig.duration * 60) * 100;
         milestones.push({
-          label: `Break ${i}`,
+          label: `Break ${breakInfo.number}`,
           position,
           passed: getProgress() >= position,
-          icon: i % 2 === 1 ? Triangle : Circle,
-          color: getProgress() >= position
-            ? "text-blue-400"
-            : "text-gray-500",
+          icon: index % 2 === 0 ? Triangle : Circle,
+          color: getProgress() >= position ? "text-blue-400" : "text-gray-500",
         });
-      }
+      });
     }
 
     milestones.push({
@@ -402,7 +447,9 @@ const Session = () => {
 
             <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center mb-8">
               <div className="mb-8">
-                <div className="text-7xl lg:text-8xl font-mono font-bold text-white mb-2">
+                <div className={`text-7xl lg:text-8xl font-mono font-bold mb-2 transition-colors duration-500 ${
+                  isBreak ? 'text-red-400' : 'text-white'
+                }`}>
                   {getDisplayTime()}
                 </div>
                 <div className="text-gray-400 text-lg">
@@ -453,7 +500,18 @@ const Session = () => {
               </div>
 
               <div className="relative mb-12">
-                <Progress value={getProgress()} className="h-8 rounded-full" />
+                <Progress 
+                  value={getProgress()} 
+                  className={`h-8 rounded-full transition-colors duration-500 ${
+                    isBreak ? 'progress-break' : ''
+                  }`}
+                />
+                <style>{`
+                  .progress-break [data-orientation="horizontal"] > span {
+                    background: linear-gradient(to right, #ef4444, #dc2626) !important;
+                    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3) !important;
+                  }
+                `}</style>
                 <div className="absolute top-0 left-0 right-0 h-8 flex items-center">
                   {getMilestones().map((milestone, index) => {
                     const IconComponent = milestone.icon;

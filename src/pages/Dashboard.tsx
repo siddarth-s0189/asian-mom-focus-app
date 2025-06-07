@@ -66,8 +66,12 @@ const Dashboard = () => {
 
   const getBreakInfo = () => {
     if (!allowBreaks || duration[0] < 60) return null;
-    const hours = Math.floor(duration[0] / 60);
-    return `${hours} × 10min break${hours > 1 ? 's' : ''}`;
+    const totalMinutes = duration[0];
+    const isShortFormat = totalMinutes <= 120; // 2 hours or less
+    const workInterval = isShortFormat ? 25 : 50;
+    const breakInterval = isShortFormat ? 5 : 10;
+    const breakCount = Math.floor(totalMinutes / (workInterval + breakInterval));
+    return `${breakCount} × ${breakInterval}min break${breakCount > 1 ? 's' : ''} (${workInterval}/${breakInterval} format)`;
   };
 
   return (
@@ -204,7 +208,7 @@ const Dashboard = () => {
                           onValueChange={setDuration}
                           max={360}
                           min={30}
-                          step={15}
+                          step={30}
                           className="w-full duration-slider"
                         />
                         <style>{`
@@ -245,7 +249,7 @@ const Dashboard = () => {
                             <span className="text-white text-xl">☕</span>
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-white">Smart Breaks</h3>
+                            <h3 className="text-xl font-bold text-white">Pomodoro Breaks</h3>
                             <p className="text-gray-300">Automatic rest periods to maintain peak performance</p>
                           </div>
                         </div>
