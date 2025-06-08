@@ -22,7 +22,7 @@ const FocusReminderOverlay = ({ showOverlay }: FocusReminderOverlayProps) => {
         </div>
         <div className="bg-white/10 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 max-w-2xl mx-auto">
           <div className="text-2xl font-bold text-white mb-4 min-h-[3.5rem]">
-            {momSpeech.getCurrentText()}
+            {momSpeech.getCurrentText() || "Get ready to focus!"}
           </div>
           <div className="text-gray-300 text-lg">
             {momSpeech.isPlaying ? "Speaking..." : "Get ready to focus!"}
