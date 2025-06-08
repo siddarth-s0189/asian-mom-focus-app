@@ -191,9 +191,9 @@ const Session = () => {
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
         <Navbar />
 
-        <div className="flex flex-col items-center justify-center px-2 py-8">
-          {/* Contained Timer Card */}
-          <div className="w-full max-w-3xl rounded-3xl bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 p-8 mb-8">
+        <div className="flex flex-col items-center justify-center px-4 py-8">
+          {/* Header Section - Outside grey card */}
+          <div className="w-full max-w-5xl mb-8">
             <SessionTimer
               sessionTitle={sessionConfig.sessionTitle}
               isBreak={isBreak}
@@ -203,8 +203,24 @@ const Session = () => {
               getDisplayTime={getDisplayTime}
               isCountUp={isCountUp}
               toggleTimerMode={toggleTimerMode}
+              showHeaderOnly={true}
             />
-            {/* Buttons inside the grey card */}
+          </div>
+
+          {/* Timer and Controls Card */}
+          <div className="w-full max-w-5xl rounded-3xl bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 p-8 mb-8">
+            <SessionTimer
+              sessionTitle={sessionConfig.sessionTitle}
+              isBreak={isBreak}
+              breakNumber={breakNumber}
+              isRunning={isRunning}
+              showMomOverlay={showMomOverlay}
+              getDisplayTime={getDisplayTime}
+              isCountUp={isCountUp}
+              toggleTimerMode={toggleTimerMode}
+              showTimerOnly={true}
+            />
+            
             <div className="flex justify-center mt-8">
               <SessionControls
                 isRunning={isRunning}
@@ -218,8 +234,8 @@ const Session = () => {
             </div>
           </div>
 
-          {/* Contained Progress Card - same width as above */}
-          <div className="w-full max-w-3xl">
+          {/* Progress Card - same width as above */}
+          <div className="w-full max-w-5xl">
             <SessionProgress
               sessionConfig={sessionConfig}
               isBreak={isBreak}
