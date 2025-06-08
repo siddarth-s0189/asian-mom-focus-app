@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -18,7 +17,7 @@ const Session = () => {
 
   const momSpeech = useAsianMomSpeech();
   const { getBreakSchedule } = useBreakSchedule();
-  
+
   const {
     sessionConfig,
     isRunning,
@@ -70,7 +69,6 @@ const Session = () => {
 
   const handleSessionComplete = async () => {
     if (isBreak) {
-      // Break completed, return to work
       setIsBreak(false);
       const format = getPomodoroFormat(sessionConfig!.duration);
       const workTime = format.work * 60;
@@ -87,13 +85,11 @@ const Session = () => {
         setShowMomOverlay(false);
       }
     } else {
-      // Check if it's time for a break
       const timeElapsed = (sessionConfig!.duration * 60) - timeRemaining;
       const breakSchedule = getBreakSchedule(sessionConfig!);
       const nextBreak = breakSchedule.find(b => Math.abs((b.startTime * 60) - timeElapsed) < 30);
-      
+
       if (nextBreak && sessionConfig?.breaks) {
-        // Start break
         setIsBreak(true);
         setBreakNumber(nextBreak.number);
         const breakTime = nextBreak.duration * 60;
@@ -108,11 +104,10 @@ const Session = () => {
           setShowMomOverlay(false);
         }
       } else {
-        // Session completed successfully
         if (sessionStartTime && sessionConfig) {
           const sessionData = {
             id: generateSessionId(),
-            userId: "user-id", // This should come from auth context
+            userId: "user-id",
             sessionTitle: sessionConfig.sessionTitle,
             goal: sessionConfig.goal,
             duration: sessionConfig.duration,
@@ -138,7 +133,6 @@ const Session = () => {
     }
   };
 
-  // Override the timer logic to handle session completion
   React.useEffect(() => {
     if (timeRemaining === 0 && isRunning) {
       setIsRunning(false);
@@ -148,7 +142,6 @@ const Session = () => {
 
   const handleStart = async () => {
     if (showMomOverlay) return;
-    
     setShowMomOverlay(true);
     try {
       await momSpeech.playSessionStart();
@@ -177,7 +170,6 @@ const Session = () => {
 
   const handleStopConfirmAction = async () => {
     setShowStopConfirmation(false);
-    
     setShowMomOverlay(true);
     try {
       await momSpeech.playSessionQuit();
@@ -199,29 +191,35 @@ const Session = () => {
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
         <Navbar />
 
-        <div className="container mx-auto px-6 py-8">
-          <SessionTimer
-            sessionTitle={sessionConfig.sessionTitle}
-            isBreak={isBreak}
-            breakNumber={breakNumber}
-            isRunning={isRunning}
-            showMomOverlay={showMomOverlay}
-            getDisplayTime={getDisplayTime}
-            isCountUp={isCountUp}
-            toggleTimerMode={toggleTimerMode}
-          />
+        <div className="flex flex-col items-center justify-center px-2 py-8">
+          {/* Contained Timer Card */}
+          <div className="w-full max-w-3xl rounded-3xl bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 p-8 mb-8">
+            <SessionTimer
+              sessionTitle={sessionConfig.sessionTitle}
+              isBreak={isBreak}
+              breakNumber={breakNumber}
+              isRunning={isRunning}
+              showMomOverlay={showMomOverlay}
+              getDisplayTime={getDisplayTime}
+              isCountUp={isCountUp}
+              toggleTimerMode={toggleTimerMode}
+            />
+            {/* Buttons inside the grey card */}
+            <div className="flex justify-center mt-8">
+              <SessionControls
+                isRunning={isRunning}
+                showMomOverlay={showMomOverlay}
+                timeRemaining={timeRemaining}
+                totalTime={totalTime}
+                onStart={handleStart}
+                onPause={handlePause}
+                onStopClick={handleStopClick}
+              />
+            </div>
+          </div>
 
-          <SessionControls
-            isRunning={isRunning}
-            showMomOverlay={showMomOverlay}
-            timeRemaining={timeRemaining}
-            totalTime={totalTime}
-            onStart={handleStart}
-            onPause={handlePause}
-            onStopClick={handleStopClick}
-          />
-
-          <div className="mt-8">
+          {/* Contained Progress Card - same width as above */}
+          <div className="w-full max-w-3xl">
             <SessionProgress
               sessionConfig={sessionConfig}
               isBreak={isBreak}
@@ -238,7 +236,7 @@ const Session = () => {
           onCancel={handleStopCancel}
         />
 
-        <FocusReminderOverlay showOverlay={showMomOverlay} />
+        <FocusReminderOverlay showOverlay={showMomOverlay} momSpeech={momSpeech} />
       </div>
     </ProtectedRoute>
   );

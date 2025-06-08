@@ -1,4 +1,3 @@
-
 import { Progress } from "@/components/ui/progress";
 import { X, Triangle, Circle, Square } from "lucide-react";
 
@@ -26,7 +25,7 @@ const SessionProgress = ({
 }: SessionProgressProps) => {
   const getMilestones = () => {
     if (!sessionConfig) return [];
-    
+
     const milestones = [
       {
         label: "Start",
@@ -42,7 +41,7 @@ const SessionProgress = ({
       breakSchedule.forEach((breakInfo, index) => {
         const position = (breakInfo.startTime * 60) / (sessionConfig.duration * 60) * 100;
         milestones.push({
-          label: `Break ${breakInfo.number}`,
+          label: "Break",
           position,
           passed: getProgress() >= position,
           icon: index % 2 === 0 ? Triangle : Circle,
@@ -61,6 +60,8 @@ const SessionProgress = ({
 
     return milestones;
   };
+
+  const milestones = getMilestones();
 
   return (
     <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8">
@@ -86,15 +87,16 @@ const SessionProgress = ({
             box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3) !important;
           }
         `}</style>
-        <div className="absolute top-0 left-0 right-0 h-8 flex items-center">
-          {getMilestones().map((milestone, index) => {
+        {/* Milestone icons */}
+        <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none">
+          {milestones.map((milestone, index) => {
             const IconComponent = milestone.icon;
             return (
               <div
                 key={index}
                 className="absolute flex items-center justify-center"
                 style={{
-                  left: `${milestone.position}%`,
+                  left: `calc(${milestone.position}% )`,
                   transform: "translateX(-50%)",
                   zIndex: 10,
                 }}
@@ -117,26 +119,29 @@ const SessionProgress = ({
         </div>
       </div>
 
-      <div className="relative mt-4">
-        <div className="flex justify-between items-center">
-          {getMilestones().map((milestone, index) => (
-            <div
-              key={index}
-              className="flex flex-col items-center"
-              style={{
-                width: `${100 / getMilestones().length}%`,
-              }}
+      {/* Milestone labels directly under their icons */}
+      <div className="relative mt-4" style={{height: 28}}>
+        {milestones.map((milestone, index) => (
+          <div
+            key={index}
+            className="absolute"
+            style={{
+              left: `calc(${milestone.position}% )`,
+              transform: "translateX(-50%)",
+              width: 64, // match icon container width to help center label
+              textAlign: "center",
+            }}
+          >
+            <span
+              className={`text-sm font-medium ${
+                milestone.passed ? "text-white" : "text-gray-400"
+              }`}
+              style={{display: "block"}}
             >
-              <div
-                className={`text-sm font-medium text-center ${
-                  milestone.passed ? "text-white" : "text-gray-400"
-                }`}
-              >
-                {milestone.label}
-              </div>
-            </div>
-          ))}
-        </div>
+              {milestone.label}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

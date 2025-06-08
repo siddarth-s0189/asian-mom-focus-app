@@ -1,13 +1,12 @@
-
-import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
-
 interface FocusReminderOverlayProps {
   showOverlay: boolean;
+  momSpeech: {
+    getCurrentText: () => string;
+    isPlaying: boolean;
+  };
 }
 
-const FocusReminderOverlay = ({ showOverlay }: FocusReminderOverlayProps) => {
-  const momSpeech = useAsianMomSpeech();
-
+const FocusReminderOverlay = ({ showOverlay, momSpeech }: FocusReminderOverlayProps) => {
   if (!showOverlay) return null;
 
   return (
