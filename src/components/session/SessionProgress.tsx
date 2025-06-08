@@ -117,21 +117,26 @@ const SessionProgress = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        {getMilestones().map((milestone, index) => (
-          <div
-            key={index}
-            className="flex flex-col items-center text-center"
-          >
+      <div className="relative mt-4">
+        <div className="flex justify-between items-center">
+          {getMilestones().map((milestone, index) => (
             <div
-              className={`text-sm font-medium ${
-                milestone.passed ? "text-white" : "text-gray-400"
-              }`}
+              key={index}
+              className="flex flex-col items-center"
+              style={{
+                width: `${100 / getMilestones().length}%`,
+              }}
             >
-              {milestone.label}
+              <div
+                className={`text-sm font-medium text-center ${
+                  milestone.passed ? "text-white" : "text-gray-400"
+                }`}
+              >
+                {milestone.label}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
