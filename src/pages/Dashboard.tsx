@@ -64,21 +64,39 @@ const Dashboard = () => {
     return { text: "Insane", color: "text-red-300", bg: "bg-red-500/20", border: "border-red-400/50" };
   };
 
+  // UPDATED getBreakInfo logic -- matches desired break description rules
   const getBreakInfo = () => {
     if (!allowBreaks || duration[0] < 60) return null;
     const totalMinutes = duration[0];
-    const isShortFormat = totalMinutes <= 120; // 2 hours or less
-    const workInterval = isShortFormat ? 25 : 50;
-    const breakInterval = isShortFormat ? 5 : 10;
-    const breakCount = Math.floor(totalMinutes / (workInterval + breakInterval));
-    return `${breakCount} × ${breakInterval}min break${breakCount > 1 ? 's' : ''} (${workInterval}/${breakInterval} format)`;
+
+    if (totalMinutes === 60)   return "1 × 5 min break (25/5 format) automatically scheduled";
+    if (totalMinutes === 90)   return "2 × 5 min breaks (25/5 format) automatically scheduled";
+    if (totalMinutes === 120)  return "1 × 10 min break (50/10 format) automatically scheduled";
+    if (totalMinutes === 150)  return "2 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 180)  return "2 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 210)  return "3 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 240)  return "3 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 270)  return "4 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 300)  return "4 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 330)  return "5 × 10 min breaks (50/10 format) automatically scheduled";
+    if (totalMinutes === 360)  return "5 × 10 min breaks (50/10 format) automatically scheduled";
+    // For durations above 6 hours, extend as needed
+
+    // Fallback for in-between values
+    if (totalMinutes < 120) {
+      const breakCount = Math.floor(totalMinutes / 30);
+      return `${breakCount} × 5 min break${breakCount > 1 ? "s" : ""} (25/5 format) automatically scheduled`;
+    } else {
+      const breakCount = Math.floor((totalMinutes - 60) / 60) + 1;
+      return `${breakCount} × 10 min break${breakCount > 1 ? "s" : ""} (50/10 format) automatically scheduled`;
+    }
   };
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
         <Navbar />
-        
+
         <div className="container mx-auto px-6 py-20">
           <div className="max-w-3xl mx-auto">
             {/* Progress Header */}
@@ -104,14 +122,14 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-6">
                 <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
                   {currentStep === 1 ? "Set Your Focus Goal" : "Configure Your Session"}
                 </h1>
                 <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                  {currentStep === 1 
-                    ? "Define what you want to accomplish in this productivity session" 
+                  {currentStep === 1
+                    ? "Define what you want to accomplish in this productivity session"
                     : "Fine-tune your session settings for maximum focus and efficiency"
                   }
                 </p>
@@ -123,7 +141,7 @@ const Dashboard = () => {
               {/* Background Effects */}
               <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-orange-500/5 to-red-500/10 rounded-3xl blur-xl transform rotate-1" />
               <div className="absolute inset-0 bg-gradient-to-l from-purple-500/5 via-transparent to-blue-500/5 rounded-3xl blur-2xl transform -rotate-1" />
-              
+
               <div className="relative bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-12 shadow-2xl">
                 {currentStep === 1 && (
                   <div className="space-y-12">
@@ -136,7 +154,7 @@ const Dashboard = () => {
                           What's your mission?
                         </label>
                       </div>
-                      
+
                       <div className="space-y-6">
                         <div>
                           <label className="block text-white text-lg font-medium mb-3">
@@ -175,7 +193,7 @@ const Dashboard = () => {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-3 text-gray-400 bg-gray-800/30 rounded-xl p-4">
                         <Zap className="w-5 h-5 text-yellow-400" />
                         <span className="text-sm">Be specific in your detailed goals to maximize focus and productivity</span>
@@ -201,7 +219,7 @@ const Dashboard = () => {
                           <span className="text-white font-bold text-xl">{getDurationText()}</span>
                         </div>
                       </div>
-                      
+
                       <div className="bg-gray-800/40 rounded-2xl p-8 border border-gray-700/50">
                         <Slider
                           value={duration}
@@ -260,14 +278,14 @@ const Dashboard = () => {
                           className="scale-125 data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-green-600 data-[state=checked]:shadow-lg data-[state=checked]:shadow-green-500/50 data-[state=unchecked]:bg-gray-600 data-[state=unchecked]:border-gray-500"
                         />
                       </div>
-                      
+
                       {duration[0] < 60 ? (
                         <div className="bg-gray-700/50 border border-gray-600/50 rounded-xl p-4">
                           <p className="text-gray-300 text-center">💡 Breaks are available for sessions ≥ 1 hour</p>
                         </div>
                       ) : getBreakInfo() ? (
                         <div className="bg-gradient-to-r from-green-500/20 to-green-600/20 border border-green-400/50 rounded-xl p-4">
-                          <p className="text-green-300 text-center font-medium">✓ {getBreakInfo()} automatically scheduled</p>
+                          <p className="text-green-300 text-center font-medium">✓ {getBreakInfo()}</p>
                         </div>
                       ) : (
                         <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/20 border border-orange-400/50 rounded-xl p-4">
@@ -286,13 +304,13 @@ const Dashboard = () => {
                           Workspace Setup
                         </label>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-6">
                         <Button
                           variant={workplace === "this-device" ? "default" : "outline"}
                           onClick={() => setWorkplace("this-device")}
-                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "this-device" 
-                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105" 
+                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "this-device"
+                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105"
                             : "border-gray-400 bg-gray-700/70 text-white hover:bg-gray-600/90 hover:border-gray-300 hover:scale-105 shadow-lg shadow-gray-900/50"
                           }`}
                         >
@@ -304,8 +322,8 @@ const Dashboard = () => {
                         <Button
                           variant={workplace === "other-device" ? "default" : "outline"}
                           onClick={() => setWorkplace("other-device")}
-                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "other-device" 
-                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105" 
+                          className={`h-20 rounded-2xl transition-all duration-300 border-2 font-bold ${workplace === "other-device"
+                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-xl shadow-red-500/30 border-red-400/50 scale-105"
                             : "border-gray-400 bg-gray-700/70 text-white hover:bg-gray-600/90 hover:border-gray-300 hover:scale-105 shadow-lg shadow-gray-900/50"
                           }`}
                         >
@@ -334,7 +352,7 @@ const Dashboard = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="bg-gray-800/40 rounded-2xl p-8 border border-gray-700/50">
                         <Slider
                           value={strictness}
@@ -370,15 +388,15 @@ const Dashboard = () => {
                         <div className="flex justify-between text-sm mt-6">
                           <div className="text-center">
                             <div className="text-cyan-300 font-bold">Chill</div>
-                            <div className="text-gray-400 text-xs">2x per session</div>
+                            <div className="text-gray-400 text-xs">1x every 30 mins</div>
                           </div>
                           <div className="text-center">
                             <div className="text-orange-300 font-bold">Medium</div>
-                            <div className="text-gray-400 text-xs">~20-30min</div>
+                            <div className="text-gray-400 text-xs">2x every 30 mins</div>
                           </div>
                           <div className="text-center">
                             <div className="text-red-300 font-bold">Insane</div>
-                            <div className="text-gray-400 text-xs">~5-15min</div>
+                            <div className="text-gray-400 text-xs">3x every 30 mins</div>
                           </div>
                         </div>
                       </div>
@@ -392,7 +410,7 @@ const Dashboard = () => {
                     variant="outline"
                     onClick={handleBack}
                     disabled={currentStep === 1}
-                    className="border-gray-500 bg-gray-800/50 text-gray-200 hover:bg-gray-700/70 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl px-8 py-4 text-lg transition-all duration-300 shadow-lg"
+                    className="border-gray-500 bg-gray-800/50 text-gray-200 hover:bg-gray-700/70 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl px-8 py-4 text-lg transition-all duration-300"
                   >
                     <ChevronLeft className="w-5 h-5 mr-2" />
                     Back
@@ -402,7 +420,7 @@ const Dashboard = () => {
                     <Button
                       onClick={handleNext}
                       disabled={!sessionTitle.trim() || !sessionGoal.trim()}
-                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-12 py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-500/30 transition-all duration-300 transform hover:scale-105"
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-12 py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-500/30 transition-all duration-300"
                     >
                       Continue
                       <ChevronRight className="w-5 h-5 ml-2" />
@@ -410,7 +428,7 @@ const Dashboard = () => {
                   ) : (
                     <Button
                       onClick={handleStartSession}
-                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-12 py-4 rounded-xl text-xl shadow-xl shadow-red-500/30 transition-all duration-300 transform hover:scale-110"
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-12 py-4 rounded-xl text-xl shadow-xl shadow-red-500/30 transition-all duration-300"
                     >
                       <Clock className="w-6 h-6 mr-3" />
                       Start Focus Session
