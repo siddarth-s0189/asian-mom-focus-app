@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
@@ -43,7 +43,9 @@ const Session = () => {
     handleStopConfirm,
     setTimeRemaining,
     setTotalTime,
-    setIsRunning
+    setIsRunning,
+    sessionStartTimestampRef,
+    getElapsedSeconds
   } = useSessionLogic();
 
   const { updateLastMomAudioTimestamp, resetReminderTiming } = useFocusReminders(
@@ -54,7 +56,9 @@ const Session = () => {
     timeRemaining,
     totalTime,
     getBreakSchedule,
-    handleFocusReminder
+    handleFocusReminder,
+    sessionStartTimestampRef,
+    getElapsedSeconds
   );
 
   async function handleFocusReminder() {
@@ -68,9 +72,10 @@ const Session = () => {
   }
 
   const handleSessionComplete = async () => {
+    if (!sessionConfig) return;
     if (isBreak) {
       setIsBreak(false);
-      const format = getPomodoroFormat(sessionConfig!.duration);
+      const format = getPomodoroFormat(sessionConfig.duration);
       const workTime = format.work * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
@@ -85,11 +90,11 @@ const Session = () => {
         setShowMomOverlay(false);
       }
     } else {
-      const timeElapsed = (sessionConfig!.duration * 60) - timeRemaining;
-      const breakSchedule = getBreakSchedule(sessionConfig!);
+      const timeElapsed = getElapsedSeconds();
+      const breakSchedule = getBreakSchedule(sessionConfig);
       const nextBreak = breakSchedule.find(b => Math.abs((b.startTime * 60) - timeElapsed) < 30);
 
-      if (nextBreak && sessionConfig?.breaks) {
+      if (nextBreak && sessionConfig.breaks) {
         setIsBreak(true);
         setBreakNumber(nextBreak.number);
         const breakTime = nextBreak.duration * 60;
@@ -133,11 +138,12 @@ const Session = () => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (timeRemaining === 0 && isRunning) {
       setIsRunning(false);
       handleSessionComplete();
     }
+    // eslint-disable-next-line
   }, [timeRemaining, isRunning]);
 
   const handleStart = async () => {
@@ -190,9 +196,7 @@ const Session = () => {
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
         <Navbar />
-
         <div className="flex flex-col items-center justify-center px-4 py-8">
-          {/* Header Section - Outside grey card */}
           <div className="w-full max-w-5xl mb-8">
             <SessionTimer
               sessionTitle={sessionConfig.sessionTitle}
@@ -206,8 +210,6 @@ const Session = () => {
               showHeaderOnly={true}
             />
           </div>
-
-          {/* Timer and Controls Card */}
           <div className="w-full max-w-5xl rounded-3xl bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 p-8 mb-8">
             <SessionTimer
               sessionTitle={sessionConfig.sessionTitle}
@@ -220,7 +222,6 @@ const Session = () => {
               toggleTimerMode={toggleTimerMode}
               showTimerOnly={true}
             />
-            
             <div className="flex justify-center mt-8">
               <SessionControls
                 isRunning={isRunning}
@@ -233,8 +234,6 @@ const Session = () => {
               />
             </div>
           </div>
-
-          {/* Progress Card - same width as above */}
           <div className="w-full max-w-5xl">
             <SessionProgress
               sessionConfig={sessionConfig}
@@ -244,14 +243,12 @@ const Session = () => {
             />
           </div>
         </div>
-
         <StopConfirmationDialog
           open={showStopConfirmation}
           onOpenChange={setShowStopConfirmation}
           onConfirm={handleStopConfirmAction}
           onCancel={handleStopCancel}
         />
-
         <FocusReminderOverlay showOverlay={showMomOverlay} momSpeech={momSpeech} />
       </div>
     </ProtectedRoute>

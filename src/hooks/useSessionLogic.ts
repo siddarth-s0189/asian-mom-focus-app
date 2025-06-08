@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -39,24 +38,26 @@ export const useSessionLogic = () => {
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [totalTimeSpent, setTotalTimeSpent] = useState(0);
 
-  // Calculate Pomodoro format based on session duration
+  // Real time tracking refs
+  const sessionStartTimestampRef = useRef<number | null>(null);
+  const pausedTimestampRef = useRef<number | null>(null);
+  const accumulatedPausedTimeRef = useRef<number>(0);
+
   const getPomodoroFormat = (durationMinutes: number) => {
     return durationMinutes < 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
   };
 
-  // Save session data to localStorage
   const saveSessionToStorage = (sessionData: SessionData) => {
     const existingSessions = JSON.parse(localStorage.getItem('userSessions') || '[]');
     const updatedSessions = [...existingSessions, sessionData];
     localStorage.setItem('userSessions', JSON.stringify(updatedSessions));
   };
 
-  // Generate unique session ID
   const generateSessionId = () => {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Initialize session from localStorage
+  // Init session config, totalTime, etc.
   useEffect(() => {
     const config = localStorage.getItem("sessionConfig");
     if (config) {
@@ -65,8 +66,7 @@ export const useSessionLogic = () => {
       const timeInSeconds = parsedConfig.duration * 60;
       setTimeRemaining(timeInSeconds);
       setTotalTime(timeInSeconds);
-      
-      // Calculate total cycles for progress tracking
+
       const format = getPomodoroFormat(parsedConfig.duration);
       const cycles = Math.ceil(parsedConfig.duration / (format.work + format.break));
       setTotalCycles(cycles);
@@ -75,27 +75,83 @@ export const useSessionLogic = () => {
     }
   }, [navigate]);
 
-  // Main timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isRunning && timeRemaining > 0) {
-      interval = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-        
-        // Update total time spent
-        setTotalTimeSpent(prev => prev + 1);
-      }, 1000);
+  const getElapsedSeconds = useCallback(() => {
+    if (!isRunning && pausedTimestampRef.current && sessionStartTimestampRef.current) {
+      return Math.floor(
+        (pausedTimestampRef.current - sessionStartTimestampRef.current - accumulatedPausedTimeRef.current) / 1000
+      );
     }
+    if (sessionStartTimestampRef.current) {
+      return Math.floor(
+        (Date.now() - sessionStartTimestampRef.current - accumulatedPausedTimeRef.current) / 1000
+      );
+    }
+    return 0;
+  }, [isRunning]);
 
-    return () => clearInterval(interval);
-  }, [isRunning, timeRemaining]);
+  // Main timer effect (real time based)
+  useEffect(() => {
+    if (!isRunning) return;
+    let frameId: number;
+    const tick = () => {
+      if (!sessionStartTimestampRef.current) return;
+      const elapsed = getElapsedSeconds();
+      const newTimeRemaining = Math.max(totalTime - elapsed, 0);
+      setTimeRemaining(newTimeRemaining);
+      setTotalTimeSpent(elapsed);
+      if (newTimeRemaining <= 0) {
+        setIsRunning(false);
+        setTimeRemaining(0);
+      } else {
+        frameId = window.setTimeout(tick, 200);
+      }
+    };
+    tick();
+    return () => {
+      if (frameId) clearTimeout(frameId);
+    };
+    // eslint-disable-next-line
+  }, [isRunning, totalTime, sessionStartTimestampRef.current, accumulatedPausedTimeRef.current]);
+
+  // Controls
+  const handleStart = useCallback(() => {
+    if (!isRunning) {
+      if (!sessionStartTimestampRef.current) {
+        sessionStartTimestampRef.current = Date.now();
+        setSessionStartTime(new Date());
+      } else if (pausedTimestampRef.current) {
+        const pauseDuration = Date.now() - pausedTimestampRef.current;
+        accumulatedPausedTimeRef.current += pauseDuration;
+        pausedTimestampRef.current = null;
+      }
+      setIsRunning(true);
+    }
+  }, [isRunning]);
+
+  const handlePause = useCallback(() => {
+    if (isRunning) {
+      setIsRunning(false);
+      pausedTimestampRef.current = Date.now();
+    }
+  }, [isRunning]);
+
+  const handleStopConfirm = useCallback(() => {
+    setIsRunning(false);
+    setTimeRemaining(totalTime);
+    setTotalTimeSpent(0);
+    setIsBreak(false);
+    setBreakNumber(0);
+    setCurrentCycle(0);
+    setSessionStartTime(null);
+    sessionStartTimestampRef.current = null;
+    pausedTimestampRef.current = null;
+    accumulatedPausedTimeRef.current = 0;
+    navigate("/dashboard");
+  }, [totalTime, navigate]);
+
+  const toggleTimerMode = useCallback(() => {
+    setIsCountUp((prev) => !prev);
+  }, []);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -109,54 +165,17 @@ export const useSessionLogic = () => {
     return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const getDisplayTime = () => {
+  const getDisplayTime = useCallback(() => {
     if (isCountUp) {
-      return formatTime(totalTime - timeRemaining);
+      return formatTime(totalTimeSpent);
     }
     return formatTime(timeRemaining);
-  };
+  }, [isCountUp, totalTimeSpent, timeRemaining]);
 
-  const getProgress = () => {
+  const getProgress = useCallback(() => {
     if (totalTime === 0) return 0;
     return ((totalTime - timeRemaining) / totalTime) * 100;
-  };
-
-  const toggleTimerMode = () => {
-    setIsCountUp(!isCountUp);
-  };
-
-  const handleStart = () => {
-    if (!sessionStartTime) {
-      setSessionStartTime(new Date());
-    }
-    setIsRunning(true);
-  };
-
-  const handlePause = () => {
-    setIsRunning(false);
-  };
-
-  const handleStopConfirm = () => {
-    setIsRunning(false);
-    
-    // Save session as incomplete but count time spent
-    if (sessionStartTime && user && sessionConfig) {
-      const sessionData: SessionData = {
-        id: generateSessionId(),
-        userId: user.id,
-        sessionTitle: sessionConfig.sessionTitle,
-        goal: sessionConfig.goal,
-        duration: sessionConfig.duration,
-        timeSpent: totalTimeSpent,
-        completed: false,
-        startedAt: sessionStartTime.toISOString(),
-        completedAt: new Date().toISOString()
-      };
-      saveSessionToStorage(sessionData);
-    }
-    
-    navigate("/dashboard");
-  };
+  }, [totalTime, timeRemaining]);
 
   return {
     sessionConfig,
@@ -184,6 +203,10 @@ export const useSessionLogic = () => {
     handleStopConfirm,
     setTimeRemaining,
     setTotalTime,
-    setIsRunning
+    setIsRunning,
+    sessionStartTimestampRef,
+    getElapsedSeconds,
+    pausedTimestampRef,
+    accumulatedPausedTimeRef
   };
 };

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 
 const FOCUS_REMINDER_MIN_INTERVAL = 10 * 60 * 1000; // 10 minutes
@@ -21,20 +20,20 @@ export const useFocusReminders = (
   timeRemaining: number,
   totalTime: number,
   getBreakSchedule: (config: SessionConfig) => any[],
-  onFocusReminder: () => void
+  onFocusReminder: () => void,
+  sessionStartTimestampRef: React.MutableRefObject<number | null>,
+  getElapsedSeconds: () => number
 ) => {
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMomAudioTimestampRef = useRef<number>(Date.now());
   const nextReminderTimeRef = useRef<number>(0);
 
-  // Get reminder frequency based on strictness (per 30 minutes)
   const getReminderFrequency = (strictness: number) => {
     if (strictness < 33) return 1; // chill
     if (strictness < 67) return 2; // medium
     return 3; // insane
   };
 
-  // Calculate next reminder time with randomization
   const calculateNextReminderTime = (strictness: number, currentTime: number) => {
     const frequency = getReminderFrequency(strictness);
     const baseInterval = (30 * 60) / frequency; // 30 minutes divided by frequency
@@ -42,20 +41,15 @@ export const useFocusReminders = (
     return currentTime + baseInterval + randomOffset;
   };
 
-  // Check if we're near a break (5 minutes before or after, or during break)
   const isNearBreak = () => {
     if (!sessionConfig?.breaks || !sessionConfig) return false;
-    
-    if (isBreak) return true; // During break
-    
-    const timeElapsed = totalTime - timeRemaining;
+    if (isBreak) return true;
+    const timeElapsed = getElapsedSeconds();
     const breakSchedule = getBreakSchedule(sessionConfig);
-    
+
     for (const breakInfo of breakSchedule) {
-      const breakStartTime = breakInfo.startTime * 60; // Convert to seconds
-      const breakEndTime = breakStartTime + (breakInfo.duration * 60);
-      
-      // Check if within 5 minutes before or after break
+      const breakStartTime = breakInfo.startTime * 60;
+      const breakEndTime = breakStartTime + breakInfo.duration * 60;
       if (
         Math.abs(timeElapsed - breakStartTime) <= BREAK_BUFFER_TIME ||
         Math.abs(timeElapsed - breakEndTime) <= BREAK_BUFFER_TIME
@@ -63,44 +57,52 @@ export const useFocusReminders = (
         return true;
       }
     }
-    
     return false;
   };
 
-  // Focus reminder logic with improved timing and break avoidance
   useEffect(() => {
     if (isRunning && !isBreak && sessionConfig && !showMomOverlay) {
       const checkReminder = () => {
-        const timeElapsed = totalTime - timeRemaining;
-        
-        // Don't send reminders if we're near a break or during breaks
+        const timeElapsed = getElapsedSeconds();
+
         if (isNearBreak()) return;
-        
-        // Initialize next reminder time if not set
+
         if (nextReminderTimeRef.current === 0) {
-          nextReminderTimeRef.current = calculateNextReminderTime(sessionConfig.strictness, timeElapsed);
+          nextReminderTimeRef.current = calculateNextReminderTime(
+            sessionConfig.strictness,
+            timeElapsed
+          );
         }
-        
-        // Check if it's time for a reminder
+
         if (
           timeElapsed >= nextReminderTimeRef.current &&
           Date.now() - lastMomAudioTimestampRef.current > FOCUS_REMINDER_MIN_INTERVAL
         ) {
           onFocusReminder();
-          // Schedule next reminder
-          nextReminderTimeRef.current = calculateNextReminderTime(sessionConfig.strictness, timeElapsed);
+          lastMomAudioTimestampRef.current = Date.now();
+          nextReminderTimeRef.current = calculateNextReminderTime(
+            sessionConfig.strictness,
+            timeElapsed
+          );
         }
       };
 
-      reminderIntervalRef.current = setInterval(checkReminder, 30000); // Check every 30 seconds
-    }
+      reminderIntervalRef.current = setInterval(checkReminder, 30000);
 
-    return () => {
-      if (reminderIntervalRef.current) {
-        clearInterval(reminderIntervalRef.current);
-      }
-    };
-  }, [isRunning, isBreak, sessionConfig, showMomOverlay, timeRemaining]);
+      return () => {
+        if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
+      };
+    }
+    nextReminderTimeRef.current = 0;
+  }, [
+    isRunning,
+    isBreak,
+    sessionConfig,
+    showMomOverlay,
+    getBreakSchedule,
+    onFocusReminder,
+    getElapsedSeconds,
+  ]);
 
   const updateLastMomAudioTimestamp = () => {
     lastMomAudioTimestampRef.current = Date.now();
