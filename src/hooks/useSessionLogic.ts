@@ -43,8 +43,9 @@ export const useSessionLogic = () => {
   const pausedTimestampRef = useRef<number | null>(null);
   const accumulatedPausedTimeRef = useRef<number>(0);
 
+  // --- CHANGED THIS LINE ---
   const getPomodoroFormat = (durationMinutes: number) => {
-    return durationMinutes < 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
+    return durationMinutes < 120 ? { work: 2, break: 5 } : { work: 50, break: 10 };
   };
 
   const saveSessionToStorage = (sessionData: SessionData) => {
@@ -205,8 +206,6 @@ export const useSessionLogic = () => {
     setTotalTime,
     setIsRunning,
     sessionStartTimestampRef,
-    getElapsedSeconds,
-    pausedTimestampRef,
-    accumulatedPausedTimeRef
+    getElapsedSeconds
   };
 };

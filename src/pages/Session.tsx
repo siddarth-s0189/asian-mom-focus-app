@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
@@ -11,7 +11,20 @@ import SessionProgress from "@/components/session/SessionProgress";
 import StopConfirmationDialog from "@/components/session/StopConfirmationDialog";
 import FocusReminderOverlay from "@/components/session/FocusReminderOverlay";
 
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, n));
+
 const Session = () => {
+  // --- Session Pause/Resume State ---
+  const [sessionPauseTimestamp, setSessionPauseTimestamp] = useState<number | null>(null);
+  const [totalSessionPausedDuration, setTotalSessionPausedDuration] = useState<number>(0);
+
+  // --- Break Pause/Resume State ---
+  // Break timer uses "elapsed before pause", and "timer start" for running, no totalBreakPausedDuration needed!
+  const [breakElapsedBeforePause, setBreakElapsedBeforePause] = useState<number>(0);
+  const [breakTimerStart, setBreakTimerStart] = useState<number | null>(null);
+  const [breakPauseTimestamp, setBreakPauseTimestamp] = useState<number | null>(null);
+
   const [showMomOverlay, setShowMomOverlay] = useState(false);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
@@ -23,7 +36,6 @@ const Session = () => {
     isRunning,
     timeRemaining,
     totalTime,
-    isBreak,
     setIsBreak,
     breakNumber,
     setBreakNumber,
@@ -35,8 +47,6 @@ const Session = () => {
     getPomodoroFormat,
     saveSessionToStorage,
     generateSessionId,
-    getDisplayTime,
-    getProgress,
     toggleTimerMode,
     handleStart: originalHandleStart,
     handlePause: originalHandlePause,
@@ -48,9 +58,10 @@ const Session = () => {
     getElapsedSeconds
   } = useSessionLogic();
 
+  // --- FOCUS REMINDERS ---
   const { updateLastMomAudioTimestamp, resetReminderTiming } = useFocusReminders(
     isRunning,
-    isBreak,
+    false,
     sessionConfig,
     showMomOverlay,
     timeRemaining,
@@ -71,43 +82,80 @@ const Session = () => {
     }
   }
 
+  // --- BREAK SCHEDULE LOGIC ---
+  const breakSchedule = sessionConfig ? getBreakSchedule(sessionConfig) : [];
+  const timeElapsed = getElapsedSeconds ? getElapsedSeconds() : 0;
+  const currentBreak = breakSchedule.find(
+    b =>
+      timeElapsed >= b.startTime * 60 &&
+      timeElapsed < (b.startTime + b.duration) * 60
+  );
+  const calculatedIsBreak = !!currentBreak;
+  const breakDuration = currentBreak ? currentBreak.duration * 60 : undefined;
+  const breakStartTime = currentBreak ? currentBreak.startTime * 60 : undefined;
+  const breakElapsed = currentBreak && breakStartTime !== undefined
+    ? timeElapsed - breakStartTime
+    : undefined;
+
+  // --- On Break Enter/Exit, Reset Break Timer State ---
+  useEffect(() => {
+    if (calculatedIsBreak) {
+      setBreakElapsedBeforePause(0);
+      setBreakTimerStart(Date.now());
+      setBreakPauseTimestamp(null);
+    } else {
+      setBreakElapsedBeforePause(0);
+      setBreakTimerStart(null);
+      setBreakPauseTimestamp(null);
+    }
+    // eslint-disable-next-line
+  }, [calculatedIsBreak, currentBreak?.startTime]);
+
+  // --- ASIAN MOM OVERLAY/AUDIO EFFECT ---
+  const wasBreak = useRef(false);
+  useEffect(() => {
+    if (!sessionConfig) return;
+    if (!wasBreak.current && calculatedIsBreak) {
+      setShowMomOverlay(true);
+      momSpeech.playBreakStart()
+        .then(updateLastMomAudioTimestamp)
+        .finally(() => setShowMomOverlay(false));
+    }
+    wasBreak.current = calculatedIsBreak;
+  }, [calculatedIsBreak, sessionConfig]);
+
+  // --- SESSION END OVERLAY/AUDIO EFFECT ---
+  useEffect(() => {
+    if (!sessionConfig) return;
+    if (timeRemaining === 0 && !calculatedIsBreak) {
+      setShowMomOverlay(true);
+      momSpeech.playSessionEnd()
+        .then(updateLastMomAudioTimestamp)
+        .finally(() => setShowMomOverlay(false));
+    }
+  }, [timeRemaining, calculatedIsBreak, sessionConfig]);
+
+  // --- SESSION COMPLETE LOGIC ---
   const handleSessionComplete = async () => {
     if (!sessionConfig) return;
-    if (isBreak) {
-      setIsBreak(false);
+    if (calculatedIsBreak) {
       const format = getPomodoroFormat(sessionConfig.duration);
       const workTime = format.work * 60;
       setTimeRemaining(workTime);
       setTotalTime(workTime);
       setCurrentCycle(prev => prev + 1);
       resetReminderTiming();
-
-      setShowMomOverlay(true);
-      try {
-        await momSpeech.playBreakEnd();
-        updateLastMomAudioTimestamp();
-      } finally {
-        setShowMomOverlay(false);
-      }
     } else {
-      const timeElapsed = getElapsedSeconds();
       const breakSchedule = getBreakSchedule(sessionConfig);
-      const nextBreak = breakSchedule.find(b => Math.abs((b.startTime * 60) - timeElapsed) < 30);
-
+      const elapsed = getElapsedSeconds();
+      const nextBreak = breakSchedule.find(
+        b => Math.abs((b.startTime * 60) - elapsed) < 30
+      );
       if (nextBreak && sessionConfig.breaks) {
-        setIsBreak(true);
         setBreakNumber(nextBreak.number);
         const breakTime = nextBreak.duration * 60;
         setTimeRemaining(breakTime);
         setTotalTime(breakTime);
-
-        setShowMomOverlay(true);
-        try {
-          await momSpeech.playBreakStart();
-          updateLastMomAudioTimestamp();
-        } finally {
-          setShowMomOverlay(false);
-        }
       } else {
         if (sessionStartTime && sessionConfig) {
           const sessionData = {
@@ -123,29 +171,62 @@ const Session = () => {
           };
           saveSessionToStorage(sessionData);
         }
-
-        setShowMomOverlay(true);
-        try {
-          await momSpeech.playSessionEnd();
-          updateLastMomAudioTimestamp();
-        } finally {
-          setShowMomOverlay(false);
-          setTimeout(() => {
-            window.location.href = "/dashboard";
-          }, 500);
-        }
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 500);
       }
     }
   };
 
+  // --- TIMER EFFECT: END OF WORK OR BREAK ---
   useEffect(() => {
-    if (timeRemaining === 0 && isRunning) {
-      setIsRunning(false);
-      handleSessionComplete();
+    const now = Date.now();
+    const sessionStarted =
+      sessionStartTimestampRef.current &&
+      sessionStartTimestampRef.current > 0;
+
+    // Break timer end logic
+    if (calculatedIsBreak && breakDuration !== undefined) {
+      let liveElapsed = 0;
+      if (breakTimerStart && isRunning) {
+        liveElapsed = Math.ceil((now - breakTimerStart) / 1000); // CHANGED FROM floor to ceil
+      }
+      // if paused, liveElapsed is 0
+      const totalBreakElapsed = breakElapsedBeforePause + liveElapsed;
+      if (breakDuration - totalBreakElapsed <= 0 && isRunning) {
+        setIsRunning(false);
+        setShowMomOverlay(true);
+        (async () => {
+          try {
+            await momSpeech.playBreakEnd();
+            updateLastMomAudioTimestamp();
+          } finally {
+            setShowMomOverlay(false);
+            handleSessionComplete();
+          }
+        })();
+        return; // prevent double transition
+      }
+    } else {
+      // Work timer end logic
+      if (sessionStarted && getDisplayTime() === 0 && isRunning) {
+        setIsRunning(false);
+        handleSessionComplete();
+      }
     }
     // eslint-disable-next-line
-  }, [timeRemaining, isRunning]);
+  }, [
+    isRunning,
+    calculatedIsBreak,
+    breakTimerStart,
+    breakElapsedBeforePause,
+    breakDuration,
+    breakPauseTimestamp,
+    sessionStartTimestampRef.current,
+    totalSessionPausedDuration
+  ]);
 
+  // --- SESSION CONTROLS (START/PAUSE/STOP) ---
   const handleStart = async () => {
     if (showMomOverlay) return;
     setShowMomOverlay(true);
@@ -154,6 +235,19 @@ const Session = () => {
       updateLastMomAudioTimestamp();
     } finally {
       setShowMomOverlay(false);
+
+      // Session resume
+      if (sessionPauseTimestamp) {
+        setTotalSessionPausedDuration(prev => prev + (Date.now() - sessionPauseTimestamp));
+        setSessionPauseTimestamp(null);
+      }
+      // Break resume (if was paused)
+      if (breakPauseTimestamp) {
+        setBreakTimerStart(Date.now());
+        setBreakPauseTimestamp(null);
+        // We do not accumulate a paused duration for break, as breakElapsedBeforePause tracks all elapsed
+      }
+
       originalHandleStart();
       resetReminderTiming();
     }
@@ -167,6 +261,16 @@ const Session = () => {
     } finally {
       setShowMomOverlay(false);
       originalHandlePause();
+
+      // Session pause
+      if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
+
+      // Break pause (add elapsed up to now, null timer, set pause timestamp)
+      if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
+        setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000)); // CHANGED FROM floor to ceil
+        setBreakTimerStart(null);
+        setBreakPauseTimestamp(Date.now());
+      }
     }
   };
 
@@ -190,7 +294,73 @@ const Session = () => {
     setShowStopConfirmation(false);
   };
 
-  if (!sessionConfig) return null;
+  if (!sessionConfig) return <div>Loading...</div>;
+
+  // --- TIMER DISPLAY LOGIC ---
+  const now = Date.now();
+  const sessionStarted =
+    sessionStartTimestampRef.current &&
+    sessionStartTimestampRef.current > 0;
+
+  function getDisplayTime() {
+    if (!sessionStarted) return isCountUp ? 0 : totalTime;
+
+    const effectiveNow = isRunning ? now : (sessionPauseTimestamp ?? now);
+
+    if (calculatedIsBreak && breakDuration !== undefined) {
+      let liveElapsed = 0;
+      if (breakTimerStart && isRunning) {
+        liveElapsed = Math.ceil((now - breakTimerStart) / 1000); // CHANGED FROM floor to ceil
+      }
+      // if paused, liveElapsed is 0
+      const totalBreakElapsed = breakElapsedBeforePause + liveElapsed;
+      if (isCountUp) {
+        return Math.max(0, totalBreakElapsed);
+      } else {
+        return Math.max(0, breakDuration - totalBreakElapsed);
+      }
+    } else {
+      const sessionElapsed = Math.floor(
+        (effectiveNow - sessionStartTimestampRef.current - totalSessionPausedDuration) / 1000
+      );
+      if (isCountUp) {
+        return Math.max(0, sessionElapsed);
+      } else {
+        return Math.max(0, totalTime - sessionElapsed);
+      }
+    }
+  }
+
+  // --- SESSION PROGRESS BAR LOGIC ---
+  const getSessionProgress = () => {
+    if (!sessionStartTimestampRef.current || !totalTime) return 0;
+    // Only use sessionPauseTimestamp for session pause, not break pause!
+    const effectiveNow =
+      isRunning && !sessionPauseTimestamp
+        ? Date.now()
+        : sessionPauseTimestamp ?? Date.now();
+    const elapsed = Math.max(
+      0,
+      Math.floor(
+        (effectiveNow - sessionStartTimestampRef.current - totalSessionPausedDuration) / 1000
+      )
+    );
+    const progress = (elapsed / totalTime) * 100;
+    return isNaN(progress) || !isFinite(progress) ? 0 : clamp(progress, 0, 100);
+  };
+
+  // --- BREAK PROGRESS BAR LOGIC ---
+  const getBreakProgress = () => {
+    if (!calculatedIsBreak || !breakDuration) return 0;
+    let liveElapsed = 0;
+    if (breakTimerStart && isRunning) {
+      liveElapsed = Math.ceil((now - breakTimerStart) / 1000); // CHANGED FROM floor to ceil
+    }
+    // if paused, liveElapsed is 0
+    const totalBreakElapsed = breakElapsedBeforePause + liveElapsed;
+    const progress = (totalBreakElapsed / breakDuration) * 100;
+    return isNaN(progress) || !isFinite(progress) ? 0 : clamp(progress, 0, 100);
+  };
 
   return (
     <ProtectedRoute>
@@ -200,7 +370,7 @@ const Session = () => {
           <div className="w-full max-w-5xl mb-8">
             <SessionTimer
               sessionTitle={sessionConfig.sessionTitle}
-              isBreak={isBreak}
+              isBreak={calculatedIsBreak}
               breakNumber={breakNumber}
               isRunning={isRunning}
               showMomOverlay={showMomOverlay}
@@ -208,12 +378,14 @@ const Session = () => {
               isCountUp={isCountUp}
               toggleTimerMode={toggleTimerMode}
               showHeaderOnly={true}
+              breakDuration={breakDuration}
+              breakElapsed={breakElapsed}
             />
           </div>
           <div className="w-full max-w-5xl rounded-3xl bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 p-8 mb-8">
             <SessionTimer
               sessionTitle={sessionConfig.sessionTitle}
-              isBreak={isBreak}
+              isBreak={calculatedIsBreak}
               breakNumber={breakNumber}
               isRunning={isRunning}
               showMomOverlay={showMomOverlay}
@@ -221,6 +393,8 @@ const Session = () => {
               isCountUp={isCountUp}
               toggleTimerMode={toggleTimerMode}
               showTimerOnly={true}
+              breakDuration={breakDuration}
+              breakElapsed={breakElapsed}
             />
             <div className="flex justify-center mt-8">
               <SessionControls
@@ -237,8 +411,8 @@ const Session = () => {
           <div className="w-full max-w-5xl">
             <SessionProgress
               sessionConfig={sessionConfig}
-              isBreak={isBreak}
-              getProgress={getProgress}
+              isBreak={calculatedIsBreak}
+              getProgress={getSessionProgress}
               getBreakSchedule={getBreakSchedule}
             />
           </div>

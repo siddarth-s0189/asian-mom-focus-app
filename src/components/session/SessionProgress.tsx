@@ -36,7 +36,7 @@ const SessionProgress = ({
       },
     ];
 
-    if (sessionConfig.breaks && !isBreak) {
+    if (sessionConfig.breaks) {
       const breakSchedule = getBreakSchedule(sessionConfig);
       breakSchedule.forEach((breakInfo, index) => {
         const position = (breakInfo.startTime * 60) / (sessionConfig.duration * 60) * 100;
@@ -67,7 +67,7 @@ const SessionProgress = ({
     <div className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8">
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-2xl font-bold text-white">
-          {isBreak ? "Break Progress" : "Session Progress"}
+          Session Progress
         </h3>
         <div className="text-3xl font-bold text-red-400">
           {Math.round(getProgress())}%
