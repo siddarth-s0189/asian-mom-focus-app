@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 
 // Focus reminder schedules (in minutes)
@@ -74,6 +75,8 @@ export const useFocusReminders = (
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const triggeredRemindersRef = useRef<Set<number>>(new Set());
   const scheduledRemindersRef = useRef<number[]>([]);
+  const lastAudioTimestampRef = useRef<number>(0);
+  const cooldownUntilRef = useRef<number>(0);
 
   // Recompute schedule whenever config/session changes
   useEffect(() => {
@@ -86,9 +89,14 @@ export const useFocusReminders = (
   // Expose to parent: forcibly reset reminders
   const resetReminderTiming = () => {
     triggeredRemindersRef.current = new Set();
+    // Add a 3-second cooldown when resetting to prevent immediate firing
+    cooldownUntilRef.current = Date.now() + 3000;
   };
+
   const updateLastMomAudioTimestamp = () => {
-    // No-op for this logic, but keep API the same
+    lastAudioTimestampRef.current = Date.now();
+    // Add a 2-second cooldown after any mom audio to prevent conflicts
+    cooldownUntilRef.current = Date.now() + 2000;
   };
 
   useEffect(() => {
@@ -101,15 +109,40 @@ export const useFocusReminders = (
     ) {
       // Helper: fire ALL overdue untriggered reminders on each tick
       const checkReminders = () => {
+        const now = Date.now();
+        
+        // Skip if we're in cooldown period
+        if (now < cooldownUntilRef.current) {
+          console.log("[FocusReminder] In cooldown period, skipping check");
+          return;
+        }
+
+        // Skip if audio played recently (within 2 seconds)
+        if (now - lastAudioTimestampRef.current < 2000) {
+          console.log("[FocusReminder] Audio played recently, skipping");
+          return;
+        }
+
         const elapsed = getElapsedSeconds();
+        let reminderFired = false;
+        
         for (const reminderTime of scheduledRemindersRef.current) {
           if (
             !triggeredRemindersRef.current.has(reminderTime) &&
             elapsed >= reminderTime
           ) {
+            console.log(`[FocusReminder] Firing reminder at ${reminderTime}s (elapsed: ${elapsed}s)`);
             triggeredRemindersRef.current.add(reminderTime);
             onFocusReminder();
+            reminderFired = true;
+            // Only fire one reminder at a time to prevent multiple audio conflicts
+            break;
           }
+        }
+
+        if (reminderFired) {
+          // Set cooldown after firing a reminder
+          cooldownUntilRef.current = Date.now() + 1000;
         }
       };
 
@@ -119,13 +152,18 @@ export const useFocusReminders = (
       // Also fire checkReminders when tab becomes visible (to catch up on missed reminders)
       const handleVisibility = () => {
         if (document.visibilityState === "visible") {
-          checkReminders();
+          // Add small delay when tab becomes visible to avoid conflicts
+          setTimeout(checkReminders, 500);
         }
       };
       document.addEventListener("visibilitychange", handleVisibility);
 
-      // Fire once immediately, in case user starts mid-session
-      checkReminders();
+      // Don't fire immediately when starting - wait for cooldown to expire
+      const initialDelay = Math.max(0, cooldownUntilRef.current - Date.now());
+      if (initialDelay === 0) {
+        // Only check immediately if no cooldown is active
+        setTimeout(checkReminders, 100);
+      }
 
       return () => {
         if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
@@ -145,6 +183,7 @@ export const useFocusReminders = (
   useEffect(() => {
     if (!isRunning) {
       triggeredRemindersRef.current = new Set();
+      cooldownUntilRef.current = 0;
     }
   }, [isRunning]);
 
