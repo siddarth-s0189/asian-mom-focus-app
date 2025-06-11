@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAsianMomSpeech } from "@/hooks/useAsianMomSpeech";
-import { useSessionLogic } from "@/hooks/useSessionLogic";
 import { useBreakSchedule } from "@/hooks/useBreakSchedule";
 import { useFocusReminders } from "@/hooks/useFocusReminders";
 import SessionTimer from "@/components/session/SessionTimer";
@@ -10,11 +10,51 @@ import SessionControls from "@/components/session/SessionControls";
 import SessionProgress from "@/components/session/SessionProgress";
 import StopConfirmationDialog from "@/components/session/StopConfirmationDialog";
 import FocusReminderOverlay from "@/components/session/FocusReminderOverlay";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface SessionConfig {
+  sessionTitle: string;
+  goal: string;
+  duration: number;
+  breaks: boolean;
+  workplace: string;
+  strictness: number;
+}
+
+interface SessionData {
+  id: string;
+  userId: string;
+  sessionTitle: string;
+  goal: string;
+  duration: number;
+  timeSpent: number;
+  completed: boolean;
+  startedAt: string;
+  completedAt?: string;
+}
 
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 const Session = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Session configuration
+  const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
+  
+  // Timer state
+  const [isRunning, setIsRunning] = useState(false);
+  const [isCountUp, setIsCountUp] = useState(false);
+  const [totalTime, setTotalTime] = useState(0);
+  const [currentCycle, setCurrentCycle] = useState(0);
+  const [breakNumber, setBreakNumber] = useState(0);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+
+  // Real time tracking refs
+  const sessionStartTimestampRef = useRef<number | null>(null);
+
   // --- Session Pause/Resume State ---
   const [sessionPauseTimestamp, setSessionPauseTimestamp] = useState<number | null>(null);
   const [totalSessionPausedDuration, setTotalSessionPausedDuration] = useState<number>(0);
@@ -37,32 +77,51 @@ const Session = () => {
   const momSpeech = useAsianMomSpeech();
   const { getBreakSchedule } = useBreakSchedule();
 
-  const {
-    sessionConfig,
-    isRunning,
-    timeRemaining,
-    totalTime,
-    setIsBreak,
-    breakNumber,
-    setBreakNumber,
-    isCountUp,
-    currentCycle,
-    setCurrentCycle,
-    sessionStartTime,
-    totalTimeSpent,
-    getPomodoroFormat,
-    saveSessionToStorage,
-    generateSessionId,
-    toggleTimerMode,
-    handleStart: originalHandleStart,
-    handlePause: originalHandlePause,
-    handleStopConfirm,
-    setTimeRemaining,
-    setTotalTime,
-    setIsRunning,
-    sessionStartTimestampRef,
-    getElapsedSeconds
-  } = useSessionLogic();
+  // Helper functions
+  const getPomodoroFormat = (durationMinutes: number) => {
+    return durationMinutes < 120 ? { work: 2, break: 5 } : { work: 50, break: 10 };
+  };
+
+  const saveSessionToStorage = (sessionData: SessionData) => {
+    const existingSessions = JSON.parse(localStorage.getItem('userSessions') || '[]');
+    const updatedSessions = [...existingSessions, sessionData];
+    localStorage.setItem('userSessions', JSON.stringify(updatedSessions));
+  };
+
+  const generateSessionId = () => {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const getElapsedSeconds = () => {
+    if (!sessionStartTimestampRef.current) return 0;
+    
+    if (!isRunning && sessionPauseTimestamp) {
+      return Math.floor(
+        (sessionPauseTimestamp - sessionStartTimestampRef.current - totalSessionPausedDuration) / 1000
+      );
+    }
+    
+    return Math.floor(
+      (Date.now() - sessionStartTimestampRef.current - totalSessionPausedDuration) / 1000
+    );
+  };
+
+  const toggleTimerMode = () => {
+    setIsCountUp(prev => !prev);
+  };
+
+  // Init session config
+  useEffect(() => {
+    const config = localStorage.getItem("sessionConfig");
+    if (config) {
+      const parsedConfig: SessionConfig = JSON.parse(config);
+      setSessionConfig(parsedConfig);
+      const timeInSeconds = parsedConfig.duration * 60;
+      setTotalTime(timeInSeconds);
+    } else {
+      navigate("/dashboard");
+    }
+  }, [navigate]);
 
   // --- FOCUS REMINDERS ---
   const { updateLastMomAudioTimestamp, resetReminderTiming } = useFocusReminders(
@@ -70,7 +129,7 @@ const Session = () => {
     false,
     sessionConfig,
     showMomOverlay,
-    timeRemaining,
+    0, // timeRemaining - not used with local logic
     totalTime,
     getBreakSchedule,
     handleFocusReminder,
@@ -93,7 +152,7 @@ const Session = () => {
   const breakSchedule = sessionConfig ? getBreakSchedule(sessionConfig) : [];
   console.log("[BreakSchedule] Generated schedule:", breakSchedule);
   
-  const timeElapsed = getElapsedSeconds ? getElapsedSeconds() : 0;
+  const timeElapsed = getElapsedSeconds();
   const currentBreak = breakSchedule.find(
     b =>
       timeElapsed >= b.startTime * 60 &&
@@ -152,15 +211,12 @@ const Session = () => {
     wasBreak.current = calculatedIsBreak;
   }, [calculatedIsBreak, sessionConfig]);
 
-  // --- BREAK END OVERLAY/AUDIO EFFECT (NEW: detects transition from break to not break) ---
+  // --- BREAK END OVERLAY/AUDIO EFFECT ---
   const prevCalculatedIsBreak = useRef(calculatedIsBreak);
   useEffect(() => {
-    // If previously in a break and now not in a break, fire break end overlay/audio
     if (prevCalculatedIsBreak.current && !calculatedIsBreak) {
       console.log("[BreakEndTransitionEffect] Detected transition from break to work. Triggering break end overlay/audio.");
-      console.log("[BreakEndTransitionEffect] About to block session-end for next tick and run handleBreakEnd.");
       
-      // Block session end for the immediate next timer evaluation
       blockSessionEndOnce.current = true;
       lastBreakTransitionTime.current = Date.now();
       
@@ -184,7 +240,7 @@ const Session = () => {
 
   // --- SESSION END OVERLAY/AUDIO EFFECT ---
   useEffect(() => {
-    console.log("[SessionEndEffect] timeRemaining:", timeRemaining, "calculatedIsBreak:", calculatedIsBreak, "sessionConfig:", sessionConfig);
+    console.log("[SessionEndEffect] calculatedIsBreak:", calculatedIsBreak, "sessionConfig:", sessionConfig);
     if (!sessionConfig) return;
     
     // Don't trigger session end if we just transitioned from break (within 2 seconds)
@@ -194,114 +250,66 @@ const Session = () => {
       return;
     }
     
-    if (timeRemaining === 0 && !calculatedIsBreak) {
+    // Check if the entire session duration has been reached
+    const sessionDurationSeconds = sessionConfig.duration * 60;
+    const sessionElapsed = getElapsedSeconds();
+    
+    if (sessionElapsed >= sessionDurationSeconds && !calculatedIsBreak) {
+      console.log("[SessionEndEffect] Session duration complete, triggering session end");
       setShowMomOverlay(true);
       momSpeech.playSessionEnd()
         .then(() => {
           updateLastMomAudioTimestamp();
         })
-        .finally(() => setShowMomOverlay(false));
-      console.log("[SessionEndEffect] playSessionEnd() called");
+        .finally(() => {
+          setShowMomOverlay(false);
+          handleSessionComplete();
+        });
     }
-  }, [timeRemaining, calculatedIsBreak, sessionConfig]);
+  }, [timeElapsed, calculatedIsBreak, sessionConfig]);
 
-  // --- HANDLE BREAK END (only called after break end overlay/audio) ---
+  // --- HANDLE BREAK END ---
   const handleBreakEnd = () => {
     if (!sessionConfig) return;
     console.log("[handleBreakEnd] called. Transitioning from break to work.");
     
-    const format = getPomodoroFormat(sessionConfig.duration);
-    const workTime = format.work * 60;
-    
-    // Reset timer state for new work period
-    setTimeRemaining(workTime);
-    setTotalTime(workTime);
     setCurrentCycle(prev => prev + 1);
     resetReminderTiming();
     
-    // Block session end logic for a brief moment to prevent immediate triggering
     blockSessionEndOnce.current = true;
     setTimeout(() => {
       blockSessionEndOnce.current = false;
     }, 1000);
     
-    console.log("[handleBreakEnd] Set work time to", workTime, "and resumed timer.");
+    console.log("[handleBreakEnd] Break ended, continuing session.");
   };
 
   // --- SESSION COMPLETE LOGIC ---
   const handleSessionComplete = async () => {
-    console.log("[handleSessionComplete] called. calculatedIsBreak:", calculatedIsBreak);
+    console.log("[handleSessionComplete] called.");
     if (!sessionConfig) return;
     
-    // Check if there's a next break coming up
-    const breakSchedule = getBreakSchedule(sessionConfig);
-    const elapsed = getElapsedSeconds();
-    const nextBreak = breakSchedule.find(
-      b => Math.abs((b.startTime * 60) - elapsed) < 30
-    );
-    
-    if (nextBreak && sessionConfig.breaks) {
-      console.log("[handleSessionComplete] Next break found, transitioning to break");
-      setBreakNumber(nextBreak.number);
-      const breakTime = nextBreak.duration * 60;
-      setTimeRemaining(breakTime);
-      setTotalTime(breakTime);
-    } else {
-      console.log("[handleSessionComplete] No more breaks, ending session");
-      if (sessionStartTime && sessionConfig) {
-        const sessionData = {
-          id: generateSessionId(),
-          userId: "user-id",
-          sessionTitle: sessionConfig.sessionTitle,
-          goal: sessionConfig.goal,
-          duration: sessionConfig.duration,
-          timeSpent: totalTimeSpent,
-          completed: true,
-          startedAt: sessionStartTime.toISOString(),
-          completedAt: new Date().toISOString()
-        };
-        saveSessionToStorage(sessionData);
-      }
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 500);
+    if (sessionStartTime && sessionConfig) {
+      const sessionData = {
+        id: generateSessionId(),
+        userId: user?.id || "user-id",
+        sessionTitle: sessionConfig.sessionTitle,
+        goal: sessionConfig.goal,
+        duration: sessionConfig.duration,
+        timeSpent: getElapsedSeconds(),
+        completed: true,
+        startedAt: sessionStartTime.toISOString(),
+        completedAt: new Date().toISOString()
+      };
+      saveSessionToStorage(sessionData);
     }
+    
+    setTimeout(() => {
+      navigate("/dashboard");
+    }, 500);
   };
 
-  // --- TIMER EFFECT: END OF WORK ONLY ---
-  useEffect(() => {
-    // Declare sessionStarted at the beginning of the effect
-    const sessionStarted = sessionStartTimestampRef.current && sessionStartTimestampRef.current > 0;
-
-    console.log("[TimerEffect] RUNNING. isRunning:", isRunning, "calculatedIsBreak:", calculatedIsBreak, 
-      "sessionStarted:", sessionStarted, "getDisplayTime():", getDisplayTime(), 
-      "blockSessionEndOnce.current:", blockSessionEndOnce.current
-    );
-
-    // Work timer end logic only (break end handled by BreakEndTransitionEffect)
-    if (!calculatedIsBreak) {
-      if (sessionStarted && getDisplayTime() === 0 && isRunning && !blockSessionEndOnce.current) {
-        console.log("[TimerEffect] Work timer end condition met. Firing session complete.");
-        setIsRunning(false);
-        handleSessionComplete();
-      } else if (blockSessionEndOnce.current) {
-        console.log("[TimerEffect] Blocked session end logic for this tick after break end.");
-      }
-    }
-    // eslint-disable-next-line
-  }, [
-    isRunning,
-    calculatedIsBreak,
-    breakTimerStart,
-    breakElapsedBeforePause,
-    breakDuration,
-    breakPauseTimestamp,
-    sessionStartTimestampRef.current,
-    totalSessionPausedDuration,
-    breakRenderTick // This ensures re-evaluation during breaks
-  ]);
-
-  // --- SESSION CONTROLS (START/PAUSE/STOP) ---
+  // --- SESSION CONTROLS ---
   const handleStart = async () => {
     if (showMomOverlay) return;
     setShowMomOverlay(true);
@@ -311,18 +319,20 @@ const Session = () => {
     } finally {
       setShowMomOverlay(false);
 
-      // Session resume
-      if (sessionPauseTimestamp) {
+      if (!sessionStartTimestampRef.current) {
+        sessionStartTimestampRef.current = Date.now();
+        setSessionStartTime(new Date());
+      } else if (sessionPauseTimestamp) {
         setTotalSessionPausedDuration(prev => prev + (Date.now() - sessionPauseTimestamp));
         setSessionPauseTimestamp(null);
       }
-      // Break resume (if was paused)
+
       if (breakPauseTimestamp) {
         setBreakTimerStart(Date.now());
         setBreakPauseTimestamp(null);
       }
 
-      originalHandleStart();
+      setIsRunning(true);
       resetReminderTiming();
     }
   };
@@ -334,12 +344,10 @@ const Session = () => {
       updateLastMomAudioTimestamp();
     } finally {
       setShowMomOverlay(false);
-      originalHandlePause();
+      setIsRunning(false);
 
-      // Session pause
       if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
 
-      // Break pause (add elapsed up to now, null timer, set pause timestamp)
       if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
         setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000));
         setBreakTimerStart(null);
@@ -352,7 +360,7 @@ const Session = () => {
     setShowStopConfirmation(true);
   };
 
-  const handleStopConfirmAction = async () => {
+  const handleStopConfirm = async () => {
     setShowStopConfirmation(false);
     setShowMomOverlay(true);
     try {
@@ -360,7 +368,7 @@ const Session = () => {
       updateLastMomAudioTimestamp();
     } finally {
       setShowMomOverlay(false);
-      handleStopConfirm();
+      navigate("/dashboard");
     }
   };
 
@@ -374,7 +382,6 @@ const Session = () => {
   const now = Date.now();
 
   function getDisplayTime() {
-    // Declare sessionStarted at the beginning of the function
     const sessionStarted = sessionStartTimestampRef.current && sessionStartTimestampRef.current > 0;
     
     if (!sessionStarted) return isCountUp ? 0 : totalTime;
@@ -433,12 +440,6 @@ const Session = () => {
     return isNaN(progress) || !isFinite(progress) ? 0 : clamp(progress, 0, 100);
   };
 
-  // Overlay render debug
-  const DebugFocusReminderOverlay = (props: any) => {
-    console.log("[FocusReminderOverlay] rendered. showOverlay:", props.showOverlay);
-    return <FocusReminderOverlay {...props} />;
-  };
-
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
@@ -477,7 +478,7 @@ const Session = () => {
               <SessionControls
                 isRunning={isRunning}
                 showMomOverlay={showMomOverlay}
-                timeRemaining={timeRemaining}
+                timeRemaining={getDisplayTime()}
                 totalTime={totalTime}
                 onStart={handleStart}
                 onPause={handlePause}
@@ -497,10 +498,10 @@ const Session = () => {
         <StopConfirmationDialog
           open={showStopConfirmation}
           onOpenChange={setShowStopConfirmation}
-          onConfirm={handleStopConfirmAction}
+          onConfirm={handleStopConfirm}
           onCancel={handleStopCancel}
         />
-        <DebugFocusReminderOverlay showOverlay={showMomOverlay} momSpeech={momSpeech} />
+        <FocusReminderOverlay showOverlay={showMomOverlay} momSpeech={momSpeech} />
       </div>
     </ProtectedRoute>
   );
