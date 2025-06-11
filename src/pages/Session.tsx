@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -271,9 +270,8 @@ const Session = () => {
 
   // --- TIMER EFFECT: END OF WORK ONLY ---
   useEffect(() => {
-    const sessionStarted =
-      sessionStartTimestampRef.current &&
-      sessionStartTimestampRef.current > 0;
+    // Declare sessionStarted at the beginning of the effect
+    const sessionStarted = sessionStartTimestampRef.current && sessionStartTimestampRef.current > 0;
 
     console.log("[TimerEffect] RUNNING. isRunning:", isRunning, "calculatedIsBreak:", calculatedIsBreak, 
       "sessionStarted:", sessionStarted, "getDisplayTime():", getDisplayTime(), 
@@ -374,11 +372,11 @@ const Session = () => {
 
   // --- TIMER DISPLAY LOGIC ---
   const now = Date.now();
-  const sessionStarted =
-    sessionStartTimestampRef.current &&
-    sessionStartTimestampRef.current > 0;
 
   function getDisplayTime() {
+    // Declare sessionStarted at the beginning of the function
+    const sessionStarted = sessionStartTimestampRef.current && sessionStartTimestampRef.current > 0;
+    
     if (!sessionStarted) return isCountUp ? 0 : totalTime;
 
     const effectiveNow = isRunning ? now : (sessionPauseTimestamp ?? now);
