@@ -81,7 +81,7 @@ const Session = () => {
 
   // Helper functions
   const getPomodoroFormat = (durationMinutes: number) => {
-    return durationMinutes < 120 ? { work: 2, break: 5 } : { work: 50, break: 10 };
+    return durationMinutes < 120 ? { work: 25, break: 5 } : { work: 50, break: 10 };
   };
 
   const saveSessionToStorage = (sessionData: SessionData) => {
@@ -357,23 +357,26 @@ const Session = () => {
   };
 
   const handlePause = async () => {
-    setShowMomOverlay(true);
-    try {
-      await momSpeech.playSessionPause();
-      updateLastMomAudioTimestamp();
-    } finally {
-      setShowMomOverlay(false);
-      setIsRunning(false);
+  // Pause the timer FIRST
+  setIsRunning(false);
 
-      if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
+  if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
 
-      if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
-        setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000));
-        setBreakTimerStart(null);
-        setBreakPauseTimestamp(Date.now());
-      }
-    }
-  };
+  if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
+    setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000));
+    setBreakTimerStart(null);
+    setBreakPauseTimestamp(Date.now());
+  }
+
+  // THEN show overlay/audio
+  setShowMomOverlay(true);
+  try {
+    await momSpeech.playSessionPause();
+    updateLastMomAudioTimestamp();
+  } finally {
+    setShowMomOverlay(false);
+  }
+};
 
   const handleStopClick = () => {
     setShowStopConfirmation(true);
