@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -26,6 +27,13 @@ const Session = () => {
 
   const [showMomOverlay, setShowMomOverlay] = useState(false);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
+
+  // Add state to force re-renders during breaks
+  const [breakRenderTick, setBreakRenderTick] = useState(0);
+
+  // Add ref to block session end immediately after break transition
+  const blockSessionEndOnce = useRef(false);
+  const lastBreakTransitionTime = useRef<number>(0);
 
   const momSpeech = useAsianMomSpeech();
   const { getBreakSchedule } = useBreakSchedule();
@@ -84,6 +92,8 @@ const Session = () => {
 
   // --- BREAK SCHEDULE LOGIC ---
   const breakSchedule = sessionConfig ? getBreakSchedule(sessionConfig) : [];
+  console.log("[BreakSchedule] Generated schedule:", breakSchedule);
+  
   const timeElapsed = getElapsedSeconds ? getElapsedSeconds() : 0;
   const currentBreak = breakSchedule.find(
     b =>
@@ -97,20 +107,34 @@ const Session = () => {
     ? timeElapsed - breakStartTime
     : undefined;
 
+  console.log("[BreakDetection] timeElapsed:", timeElapsed, "currentBreak:", currentBreak, "calculatedIsBreak:", calculatedIsBreak);
+
   // --- On Break Enter/Exit, Reset Break Timer State ---
   useEffect(() => {
     console.log("[BreakState] calculatedIsBreak:", calculatedIsBreak, "currentBreak?.startTime:", currentBreak?.startTime);
     if (calculatedIsBreak) {
+      console.log("[BreakState] Entered break. Reset break timer state.");
       setBreakElapsedBeforePause(0);
       setBreakTimerStart(Date.now());
       setBreakPauseTimestamp(null);
     } else {
+      console.log("[BreakState] Exited break. Reset break timer state.");
       setBreakElapsedBeforePause(0);
       setBreakTimerStart(null);
       setBreakPauseTimestamp(null);
     }
     // eslint-disable-next-line
   }, [calculatedIsBreak, currentBreak?.startTime]);
+
+  // --- Force re-renders during breaks for live timer updates ---
+  useEffect(() => {
+    if (calculatedIsBreak && isRunning) {
+      const interval = setInterval(() => {
+        setBreakRenderTick(tick => tick + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [calculatedIsBreak, isRunning]);
 
   // --- ASIAN MOM OVERLAY/AUDIO EFFECT ON BREAK START ---
   const wasBreak = useRef(false);
@@ -135,6 +159,12 @@ const Session = () => {
     // If previously in a break and now not in a break, fire break end overlay/audio
     if (prevCalculatedIsBreak.current && !calculatedIsBreak) {
       console.log("[BreakEndTransitionEffect] Detected transition from break to work. Triggering break end overlay/audio.");
+      console.log("[BreakEndTransitionEffect] About to block session-end for next tick and run handleBreakEnd.");
+      
+      // Block session end for the immediate next timer evaluation
+      blockSessionEndOnce.current = true;
+      lastBreakTransitionTime.current = Date.now();
+      
       setShowMomOverlay(true);
       (async () => {
         try {
@@ -145,18 +175,26 @@ const Session = () => {
         } finally {
           setShowMomOverlay(false);
           setTimeout(() => {
-            handleBreakEnd(); // <--- use break-specific logic
+            handleBreakEnd();
           }, 350);
         }
       })();
     }
     prevCalculatedIsBreak.current = calculatedIsBreak;
-  }, [calculatedIsBreak]); // Only when break state changes
+  }, [calculatedIsBreak]);
 
   // --- SESSION END OVERLAY/AUDIO EFFECT ---
   useEffect(() => {
     console.log("[SessionEndEffect] timeRemaining:", timeRemaining, "calculatedIsBreak:", calculatedIsBreak, "sessionConfig:", sessionConfig);
     if (!sessionConfig) return;
+    
+    // Don't trigger session end if we just transitioned from break (within 2 seconds)
+    const timeSinceBreakTransition = Date.now() - lastBreakTransitionTime.current;
+    if (timeSinceBreakTransition < 2000) {
+      console.log("[SessionEndEffect] Skipping session end - too soon after break transition");
+      return;
+    }
+    
     if (timeRemaining === 0 && !calculatedIsBreak) {
       setShowMomOverlay(true);
       momSpeech.playSessionEnd()
@@ -172,30 +210,45 @@ const Session = () => {
   const handleBreakEnd = () => {
     if (!sessionConfig) return;
     console.log("[handleBreakEnd] called. Transitioning from break to work.");
+    
     const format = getPomodoroFormat(sessionConfig.duration);
     const workTime = format.work * 60;
+    
+    // Reset timer state for new work period
     setTimeRemaining(workTime);
     setTotalTime(workTime);
     setCurrentCycle(prev => prev + 1);
     resetReminderTiming();
+    
+    // Block session end logic for a brief moment to prevent immediate triggering
+    blockSessionEndOnce.current = true;
+    setTimeout(() => {
+      blockSessionEndOnce.current = false;
+    }, 1000);
+    
+    console.log("[handleBreakEnd] Set work time to", workTime, "and resumed timer.");
   };
 
   // --- SESSION COMPLETE LOGIC ---
   const handleSessionComplete = async () => {
     console.log("[handleSessionComplete] called. calculatedIsBreak:", calculatedIsBreak);
     if (!sessionConfig) return;
-    // Only runs for session end (not break end anymore!)
+    
+    // Check if there's a next break coming up
     const breakSchedule = getBreakSchedule(sessionConfig);
     const elapsed = getElapsedSeconds();
     const nextBreak = breakSchedule.find(
       b => Math.abs((b.startTime * 60) - elapsed) < 30
     );
+    
     if (nextBreak && sessionConfig.breaks) {
+      console.log("[handleSessionComplete] Next break found, transitioning to break");
       setBreakNumber(nextBreak.number);
       const breakTime = nextBreak.duration * 60;
       setTimeRemaining(breakTime);
       setTotalTime(breakTime);
     } else {
+      console.log("[handleSessionComplete] No more breaks, ending session");
       if (sessionStartTime && sessionConfig) {
         const sessionData = {
           id: generateSessionId(),
@@ -218,25 +271,23 @@ const Session = () => {
 
   // --- TIMER EFFECT: END OF WORK ONLY ---
   useEffect(() => {
-    const now = Date.now();
     const sessionStarted =
       sessionStartTimestampRef.current &&
       sessionStartTimestampRef.current > 0;
 
     console.log("[TimerEffect] RUNNING. isRunning:", isRunning, "calculatedIsBreak:", calculatedIsBreak, 
-      "breakTimerStart:", breakTimerStart, "breakElapsedBeforePause:", breakElapsedBeforePause, 
-      "breakDuration:", breakDuration, "breakPauseTimestamp:", breakPauseTimestamp, 
-      "sessionStartTimestamp:", sessionStartTimestampRef.current, 
-      "totalSessionPausedDuration:", totalSessionPausedDuration, 
-      "getElapsedSeconds():", getElapsedSeconds && getElapsedSeconds()
+      "sessionStarted:", sessionStarted, "getDisplayTime():", getDisplayTime(), 
+      "blockSessionEndOnce.current:", blockSessionEndOnce.current
     );
 
     // Work timer end logic only (break end handled by BreakEndTransitionEffect)
     if (!calculatedIsBreak) {
-      if (sessionStarted && getDisplayTime() === 0 && isRunning) {
+      if (sessionStarted && getDisplayTime() === 0 && isRunning && !blockSessionEndOnce.current) {
         console.log("[TimerEffect] Work timer end condition met. Firing session complete.");
         setIsRunning(false);
         handleSessionComplete();
+      } else if (blockSessionEndOnce.current) {
+        console.log("[TimerEffect] Blocked session end logic for this tick after break end.");
       }
     }
     // eslint-disable-next-line
@@ -248,7 +299,8 @@ const Session = () => {
     breakDuration,
     breakPauseTimestamp,
     sessionStartTimestampRef.current,
-    totalSessionPausedDuration
+    totalSessionPausedDuration,
+    breakRenderTick // This ensures re-evaluation during breaks
   ]);
 
   // --- SESSION CONTROLS (START/PAUSE/STOP) ---
