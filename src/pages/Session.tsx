@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -69,6 +68,9 @@ const Session = () => {
 
   // Add state to force re-renders during breaks
   const [breakRenderTick, setBreakRenderTick] = useState(0);
+
+  // Add state to force re-renders during session (work)
+  const [sessionRenderTick, setSessionRenderTick] = useState(0);
 
   // Add ref to block session end immediately after break transition
   const blockSessionEndOnce = useRef(false);
@@ -193,6 +195,23 @@ const Session = () => {
       return () => clearInterval(interval);
     }
   }, [calculatedIsBreak, isRunning]);
+
+  // --- Force re-renders during session (work) for live timer updates ---
+  useEffect(() => {
+    // Only tick when not in break and not finished, and timer is running, and session started
+    if (
+      isRunning &&
+      !calculatedIsBreak &&
+      sessionStartTimestampRef.current &&
+      sessionStartTimestampRef.current > 0
+    ) {
+      const interval = setInterval(() => {
+        setSessionRenderTick(tick => tick + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [isRunning, calculatedIsBreak, sessionStartTimestampRef.current]);
 
   // --- ASIAN MOM OVERLAY/AUDIO EFFECT ON BREAK START ---
   const wasBreak = useRef(false);
