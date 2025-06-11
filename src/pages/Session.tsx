@@ -181,13 +181,14 @@ const Session = () => {
     const workTime = format.work * 60;
     setTimeRemaining(workTime);
     setTotalTime(workTime);
+    // Reset baseline so first tick starts from 0 elapsed
+    sessionStartTimestampRef.current = Date.now();
+    setTotalSessionPausedDuration(0);
     setCurrentCycle(prev => prev + 1);
     resetReminderTiming();
     setIsRunning(true);
     console.log("[handleBreakEnd] Set work time to", workTime, "and resumed timer.");
   };
-
-  // --- SESSION COMPLETE LOGIC ---
   const handleSessionComplete = async () => {
     console.log("[handleSessionComplete] called. calculatedIsBreak:", calculatedIsBreak);
     if (!sessionConfig) return;
