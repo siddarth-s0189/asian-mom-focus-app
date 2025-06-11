@@ -20,9 +20,13 @@ interface SessionTimerProps {
 // Use ceil for timer display so full time is shown
 function formatTime(totalSeconds: number): string {
   const t = Math.max(0, Math.ceil(totalSeconds));
-  const m = Math.floor(t / 60);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
   const s = t % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const SessionTimer = ({
