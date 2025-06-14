@@ -75,6 +75,7 @@ const Session = () => {
   // Add ref to block session end immediately after break transition
   const blockSessionEndOnce = useRef(false);
   const lastBreakTransitionTime = useRef<number>(0);
+  const lastAudioPlayTime = useRef<number>(0);
 
   const momSpeech = useAsianMomSpeech();
   const { getBreakSchedule } = useBreakSchedule();
@@ -128,7 +129,7 @@ const Session = () => {
   // --- FOCUS REMINDERS ---
   const { updateLastMomAudioTimestamp, resetReminderTiming } = useFocusReminders(
     isRunning,
-    false,
+    calculatedIsBreak,
     sessionConfig,
     showMomOverlay,
     0, // timeRemaining - not used with local logic
@@ -140,7 +141,15 @@ const Session = () => {
   );
 
   async function handleFocusReminder() {
+    const now = Date.now();
+    // Prevent multiple audio overlays within 3 seconds
+    if (now - lastAudioPlayTime.current < 3000) {
+      console.log("[FocusReminder] Skipping - too soon after last audio");
+      return;
+    }
+    
     console.log("[FocusReminder] Triggered handleFocusReminder()");
+    lastAudioPlayTime.current = now;
     setShowMomOverlay(true);
     try {
       await momSpeech.playFocusReminder();
@@ -163,11 +172,13 @@ const Session = () => {
   const calculatedIsBreak = !!currentBreak;
   const breakDuration = currentBreak ? currentBreak.duration * 60 : undefined;
   const breakStartTime = currentBreak ? currentBreak.startTime * 60 : undefined;
+  
+  // Fix break elapsed calculation
   const breakElapsed = currentBreak && breakStartTime !== undefined
-    ? timeElapsed - breakStartTime
+    ? Math.max(0, timeElapsed - breakStartTime)
     : undefined;
 
-  console.log("[BreakDetection] timeElapsed:", timeElapsed, "currentBreak:", currentBreak, "calculatedIsBreak:", calculatedIsBreak);
+  console.log("[BreakDetection] timeElapsed:", timeElapsed, "currentBreak:", currentBreak, "calculatedIsBreak:", calculatedIsBreak, "breakElapsed:", breakElapsed);
 
   // --- On Break Enter/Exit, Reset Break Timer State ---
   useEffect(() => {
@@ -219,6 +230,10 @@ const Session = () => {
     console.log("[BreakEntryEffect] calculatedIsBreak changed to:", calculatedIsBreak, "sessionConfig:", sessionConfig);
     if (!sessionConfig) return;
     if (!wasBreak.current && calculatedIsBreak) {
+      const now = Date.now();
+      if (now - lastAudioPlayTime.current < 2000) return; // Prevent rapid audio
+      
+      lastAudioPlayTime.current = now;
       setShowMomOverlay(true);
       momSpeech.playBreakStart()
         .then(() => {
@@ -236,8 +251,12 @@ const Session = () => {
     if (prevCalculatedIsBreak.current && !calculatedIsBreak) {
       console.log("[BreakEndTransitionEffect] Detected transition from break to work. Triggering break end overlay/audio.");
       
+      const now = Date.now();
+      if (now - lastAudioPlayTime.current < 2000) return; // Prevent rapid audio
+      
       blockSessionEndOnce.current = true;
-      lastBreakTransitionTime.current = Date.now();
+      lastBreakTransitionTime.current = now;
+      lastAudioPlayTime.current = now;
       
       setShowMomOverlay(true);
       (async () => {
@@ -262,9 +281,9 @@ const Session = () => {
     console.log("[SessionEndEffect] calculatedIsBreak:", calculatedIsBreak, "sessionConfig:", sessionConfig);
     if (!sessionConfig) return;
     
-    // Don't trigger session end if we just transitioned from break (within 2 seconds)
+    // Don't trigger session end if we just transitioned from break (within 3 seconds)
     const timeSinceBreakTransition = Date.now() - lastBreakTransitionTime.current;
-    if (timeSinceBreakTransition < 2000) {
+    if (timeSinceBreakTransition < 3000) {
       console.log("[SessionEndEffect] Skipping session end - too soon after break transition");
       return;
     }
@@ -275,6 +294,10 @@ const Session = () => {
     
     if (sessionElapsed >= sessionDurationSeconds && !calculatedIsBreak) {
       console.log("[SessionEndEffect] Session duration complete, triggering session end");
+      const now = Date.now();
+      if (now - lastAudioPlayTime.current < 2000) return; // Prevent rapid audio
+      
+      lastAudioPlayTime.current = now;
       setShowMomOverlay(true);
       momSpeech.playSessionEnd()
         .then(() => {
@@ -331,52 +354,67 @@ const Session = () => {
   // --- SESSION CONTROLS ---
   const handleStart = async () => {
     if (showMomOverlay) return;
-    setShowMomOverlay(true);
-    try {
-      await momSpeech.playSessionStart();
-      updateLastMomAudioTimestamp();
-    } finally {
-      setShowMomOverlay(false);
-
-      if (!sessionStartTimestampRef.current) {
-        sessionStartTimestampRef.current = Date.now();
-        setSessionStartTime(new Date());
-      } else if (sessionPauseTimestamp) {
-        setTotalSessionPausedDuration(prev => prev + (Date.now() - sessionPauseTimestamp));
-        setSessionPauseTimestamp(null);
+    
+    // Only play session start audio if this is truly a new session start (not resume)
+    const isResuming = sessionStartTimestampRef.current && sessionPauseTimestamp;
+    
+    if (!isResuming) {
+      const now = Date.now();
+      lastAudioPlayTime.current = now;
+      setShowMomOverlay(true);
+      try {
+        await momSpeech.playSessionStart();
+        updateLastMomAudioTimestamp();
+      } finally {
+        setShowMomOverlay(false);
       }
+    }
 
-      if (breakPauseTimestamp) {
-        setBreakTimerStart(Date.now());
-        setBreakPauseTimestamp(null);
-      }
+    // Handle session timing
+    if (!sessionStartTimestampRef.current) {
+      sessionStartTimestampRef.current = Date.now();
+      setSessionStartTime(new Date());
+    } else if (sessionPauseTimestamp) {
+      setTotalSessionPausedDuration(prev => prev + (Date.now() - sessionPauseTimestamp));
+      setSessionPauseTimestamp(null);
+    }
 
-      setIsRunning(true);
+    if (breakPauseTimestamp) {
+      setBreakTimerStart(Date.now());
+      setBreakPauseTimestamp(null);
+    }
+
+    setIsRunning(true);
+    
+    // Only reset reminders if this is a fresh start, not a resume
+    if (!isResuming) {
       resetReminderTiming();
     }
   };
 
   const handlePause = async () => {
-  // Pause the timer FIRST
-  setIsRunning(false);
+    // Pause the timer FIRST
+    setIsRunning(false);
 
-  if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
+    if (!sessionPauseTimestamp) setSessionPauseTimestamp(Date.now());
 
-  if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
-    setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000));
-    setBreakTimerStart(null);
-    setBreakPauseTimestamp(Date.now());
-  }
+    if (calculatedIsBreak && breakTimerStart && !breakPauseTimestamp) {
+      setBreakElapsedBeforePause(prev => prev + Math.ceil((Date.now() - breakTimerStart) / 1000));
+      setBreakTimerStart(null);
+      setBreakPauseTimestamp(Date.now());
+    }
 
-  // THEN show overlay/audio
-  setShowMomOverlay(true);
-  try {
-    await momSpeech.playSessionPause();
-    updateLastMomAudioTimestamp();
-  } finally {
-    setShowMomOverlay(false);
-  }
-};
+    // THEN show overlay/audio
+    const now = Date.now();
+    lastAudioPlayTime.current = now;
+    setShowMomOverlay(true);
+    try {
+      await momSpeech.playSessionPause();
+      updateLastMomAudioTimestamp();
+    } finally {
+      setShowMomOverlay(false);
+    }
+  };
 
   const handleStopClick = () => {
     setShowStopConfirmation(true);
@@ -384,6 +422,8 @@ const Session = () => {
 
   const handleStopConfirm = async () => {
     setShowStopConfirmation(false);
+    const now = Date.now();
+    lastAudioPlayTime.current = now;
     setShowMomOverlay(true);
     try {
       await momSpeech.playSessionQuit();
@@ -450,15 +490,10 @@ const Session = () => {
     return isNaN(progress) || !isFinite(progress) ? 0 : clamp(progress, 0, 100);
   };
 
-  // --- BREAK PROGRESS BAR LOGIC ---
+  // --- BREAK PROGRESS BAR LOGIC (FIXED) ---
   const getBreakProgress = () => {
-    if (!calculatedIsBreak || !breakDuration) return 0;
-    let liveElapsed = 0;
-    if (breakTimerStart && isRunning) {
-      liveElapsed = Math.ceil((now - breakTimerStart) / 1000);
-    }
-    const totalBreakElapsed = breakElapsedBeforePause + liveElapsed;
-    const progress = (totalBreakElapsed / breakDuration) * 100;
+    if (!calculatedIsBreak || !breakDuration || !breakElapsed) return 0;
+    const progress = (breakElapsed / breakDuration) * 100;
     return isNaN(progress) || !isFinite(progress) ? 0 : clamp(progress, 0, 100);
   };
 
