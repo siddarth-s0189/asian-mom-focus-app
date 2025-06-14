@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -126,6 +127,27 @@ const Session = () => {
     }
   }, [navigate]);
 
+  // --- BREAK SCHEDULE LOGIC (moved before hooks that use calculatedIsBreak) ---
+  const breakSchedule = sessionConfig ? getBreakSchedule(sessionConfig) : [];
+  console.log("[BreakSchedule] Generated schedule:", breakSchedule);
+  
+  const timeElapsed = getElapsedSeconds();
+  const currentBreak = breakSchedule.find(
+    b =>
+      timeElapsed >= b.startTime * 60 &&
+      timeElapsed < (b.startTime + b.duration) * 60
+  );
+  const calculatedIsBreak = !!currentBreak;
+  const breakDuration = currentBreak ? currentBreak.duration * 60 : undefined;
+  const breakStartTime = currentBreak ? currentBreak.startTime * 60 : undefined;
+  
+  // Fix break elapsed calculation
+  const breakElapsed = currentBreak && breakStartTime !== undefined
+    ? Math.max(0, timeElapsed - breakStartTime)
+    : undefined;
+
+  console.log("[BreakDetection] timeElapsed:", timeElapsed, "currentBreak:", currentBreak, "calculatedIsBreak:", calculatedIsBreak, "breakElapsed:", breakElapsed);
+
   // --- FOCUS REMINDERS ---
   const { updateLastMomAudioTimestamp, resetReminderTiming } = useFocusReminders(
     isRunning,
@@ -158,27 +180,6 @@ const Session = () => {
       setShowMomOverlay(false);
     }
   }
-
-  // --- BREAK SCHEDULE LOGIC ---
-  const breakSchedule = sessionConfig ? getBreakSchedule(sessionConfig) : [];
-  console.log("[BreakSchedule] Generated schedule:", breakSchedule);
-  
-  const timeElapsed = getElapsedSeconds();
-  const currentBreak = breakSchedule.find(
-    b =>
-      timeElapsed >= b.startTime * 60 &&
-      timeElapsed < (b.startTime + b.duration) * 60
-  );
-  const calculatedIsBreak = !!currentBreak;
-  const breakDuration = currentBreak ? currentBreak.duration * 60 : undefined;
-  const breakStartTime = currentBreak ? currentBreak.startTime * 60 : undefined;
-  
-  // Fix break elapsed calculation
-  const breakElapsed = currentBreak && breakStartTime !== undefined
-    ? Math.max(0, timeElapsed - breakStartTime)
-    : undefined;
-
-  console.log("[BreakDetection] timeElapsed:", timeElapsed, "currentBreak:", currentBreak, "calculatedIsBreak:", calculatedIsBreak, "breakElapsed:", breakElapsed);
 
   // --- On Break Enter/Exit, Reset Break Timer State ---
   useEffect(() => {
