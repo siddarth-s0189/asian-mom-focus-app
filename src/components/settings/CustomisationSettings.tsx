@@ -8,7 +8,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Globe, ListTodo, Users, Settings } from "lucide-react";
+import { Calendar, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,218 +25,119 @@ export default function CustomisationSettings() {
   const [blocklistEnabled, setBlocklistEnabled] = useState(false);
 
   return (
-    <div className="space-y-6">
-      {/* Audio & Speech Section */}
-      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-            <Settings className="w-5 h-5" />
-            Audio & Speech
-          </CardTitle>
-          <CardDescription className="text-gray-400 text-sm font-normal">
-            Configure audio feedback and motivational speech
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
+    <Card className="bg-gray-800/50 border-gray-700/50 rounded-xl backdrop-blur-sm">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-white text-2xl font-semibold flex items-center gap-3">
+          <Settings className="w-6 h-6" />
+          Customisation
+        </CardTitle>
+        <CardDescription className="text-gray-300 text-base">
+          Personalize your AsianMom.gg experience
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-8">
+        {/* Schedule with Calendar */}
+        <div className="flex items-center justify-between py-2">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-white" />
             <div>
-              <div className="text-white text-base font-medium">Sound Effects</div>
-              <div className="text-gray-400 text-sm">Play audio during focus sessions</div>
+              <div className="text-white text-lg font-medium">Schedule with Calendar</div>
+              <div className="text-gray-400 text-base">Get daily study reminders via email</div>
             </div>
-            <Switch 
-              checked={true} 
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white text-base font-medium">Motivational Speech</div>
-              <div className="text-gray-400 text-sm">Enable Asian mom motivational speeches</div>
-            </div>
-            <Switch 
-              checked={true}
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <Switch 
+            checked={emailRemindersEnabled} 
+            onCheckedChange={setEmailRemindersEnabled}
+            className="data-[state=checked]:bg-transparent data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+          />
+        </div>
 
-      {/* Notifications Section */}
-      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-            <Calendar className="w-5 h-5" />
-            Notifications
-          </CardTitle>
-          <CardDescription className="text-gray-400 text-sm font-normal">
-            Control how you receive notifications and reminders
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
+        {/* Manage Blocklist */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-2">
             <div>
-              <div className="text-white text-base font-medium">Email Reminders</div>
-              <div className="text-gray-400 text-sm">Get daily study reminders via email</div>
-            </div>
-            <Switch 
-              checked={emailRemindersEnabled} 
-              onCheckedChange={setEmailRemindersEnabled}
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white text-base font-medium">Session Goal Reminders</div>
-              <div className="text-gray-400 text-sm">Get reminded about your session goals during breaks</div>
-            </div>
-            <Switch 
-              checked={false}
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Session Preferences Section */}
-      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-            <Globe className="w-5 h-5" />
-            Session Preferences
-          </CardTitle>
-          <CardDescription className="text-gray-400 text-sm font-normal">
-            Customize your focus session experience
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white text-base font-medium">Blocklist for Sessions</div>
-              <div className="text-gray-400 text-sm">Block distracting websites during focus sessions</div>
+              <div className="text-white text-lg font-medium">Manage Blocklist of Sites</div>
+              <div className="text-gray-400 text-base">Block distracting websites during focus sessions</div>
             </div>
             <Switch 
               checked={blocklistEnabled} 
               onCheckedChange={setBlocklistEnabled}
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white text-base font-medium">Automatic Breaks</div>
-              <div className="text-gray-400 text-sm">Enable automatic break scheduling for long sessions</div>
-            </div>
-            <Switch 
-              checked={false}
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+              className="data-[state=checked]:bg-transparent data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
             />
           </div>
           
           {blocklistEnabled && (
-            <div className="mt-4 pt-4 border-t border-gray-600">
+            <div className="ml-8 pt-4 border-t border-gray-600">
               <div className="flex gap-3 mb-3">
                 <Input
-                  className="flex-1 bg-[#1a2332] border-gray-600 text-gray-100 text-sm"
+                  className="flex-1 bg-gray-900/50 border-gray-600 text-gray-100 text-base"
                   placeholder="Block site domain (future)"
                   disabled
                 />
                 <Button
                   disabled
-                  className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600 px-4"
+                  className="bg-white/10 hover:bg-white/20 text-white border-gray-600 px-6"
                 >
                   Add
                 </Button>
               </div>
-              <div className="bg-[#1a2332] text-gray-400 rounded-md p-3 text-sm">
+              <div className="bg-gray-900/50 text-gray-400 rounded-md p-4 text-base">
                 No sites in blocklist (future feature)
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Appearance Section */}
-      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-            <Users className="w-5 h-5" />
-            Appearance
-          </CardTitle>
-          <CardDescription className="text-gray-400 text-sm font-normal">
-            Customize the visual appearance of the app
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white text-base font-medium">Dark Mode</div>
-              <div className="text-gray-400 text-sm">Enable dark theme (always on for AsianMom.gg)</div>
-            </div>
-            <Switch 
-              checked={true}
-              disabled
-              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
-            />
+        {/* Choose Persona */}
+        <div className="space-y-4">
+          <div className="text-white text-lg font-medium">Choose Persona</div>
+          <div className="grid grid-cols-2 gap-6">
+            {personas.map(persona => (
+              <button
+                key={persona.value}
+                className={`border-2 rounded-xl p-6 flex flex-col items-center transition-all hover:scale-105
+                  ${
+                    selectedPersona === persona.value
+                      ? "border-red-500 bg-red-600/10"
+                      : "border-gray-600 bg-gray-900/30 hover:border-gray-500"
+                  }`}
+                onClick={() => setSelectedPersona(persona.value)}
+                type="button"
+              >
+                <img
+                  src={persona.img}
+                  alt={persona.label}
+                  className="w-24 h-24 rounded-full object-cover mb-4"
+                  draggable={false}
+                />
+                <span className="text-white text-base font-medium">{persona.label}</span>
+              </button>
+            ))}
           </div>
-          
-          <div className="pt-4 border-t border-gray-600">
-            <div className="text-white text-base font-medium mb-4">Choose Persona</div>
-            <div className="grid grid-cols-2 gap-4">
-              {personas.map(persona => (
-                <button
-                  key={persona.value}
-                  className={`border-2 rounded-lg p-4 flex flex-col items-center transition-all hover:scale-105
-                    ${
-                      selectedPersona === persona.value
-                        ? "border-red-500 bg-red-600/10"
-                        : "border-gray-600 bg-[#1a2332] hover:border-gray-500"
-                    }`}
-                  onClick={() => setSelectedPersona(persona.value)}
-                  type="button"
-                >
-                  <img
-                    src={persona.img}
-                    alt={persona.label}
-                    className="w-20 h-20 rounded-full object-cover mb-3"
-                    draggable={false}
-                  />
-                  <span className="text-white text-sm font-medium">{persona.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Default Tasks Section */}
-      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-            <ListTodo className="w-5 h-5" />
-            Default Tasks
-          </CardTitle>
-          <CardDescription className="text-gray-400 text-sm font-normal">
-            Set up default tasks for your study sessions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        {/* Default Tasks */}
+        <div className="space-y-4">
+          <div className="text-white text-lg font-medium">Default Tasks</div>
+          <div className="text-gray-400 text-base mb-4">Set up default tasks for your study sessions</div>
           <div className="flex gap-3 mb-3">
             <Input
-              className="flex-1 bg-[#1a2332] border-gray-600 text-gray-100 text-sm"
+              className="flex-1 bg-gray-900/50 border-gray-600 text-gray-100 text-base"
               placeholder="Add default task (future)"
               disabled
             />
             <Button
               disabled
-              className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600 px-4"
+              className="bg-white/10 hover:bg-white/20 text-white border-gray-600 px-6"
             >
               Add
             </Button>
           </div>
-          <div className="bg-[#1a2332] text-gray-400 rounded-md p-3 text-sm">
+          <div className="bg-gray-900/50 text-gray-400 rounded-md p-4 text-base">
             No default tasks set (future feature)
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
