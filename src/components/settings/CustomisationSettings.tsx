@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Globe, ListTodo } from "lucide-react";
+import { Input } from "@/components/ui/input"; // <-- Added import
 
 const personas = [
   { label: "Asian Mom", value: "asian-mom", img: "/avatars/asian-mom.png" },
