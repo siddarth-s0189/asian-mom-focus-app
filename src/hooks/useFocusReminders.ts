@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 
 // Focus reminder schedules (in minutes)
@@ -33,6 +32,7 @@ function getStrictnessKey(strictness: number): keyof typeof SCHEDULES {
 }
 
 function getSplitKey(sessionMinutes: number): "25-5" | "50-10" {
+  // 25/5 split is < 120 minutes, 50/10 is 120 or more
   return sessionMinutes < 120 ? "25-5" : "50-10";
 }
 
@@ -44,6 +44,7 @@ function getReminderSchedule(
   const splitKey = getSplitKey(sessionMinutes);
 
   const scheduleMinutes = SCHEDULES[strictnessKey][splitKey];
+  // Only keep reminders within session duration
   return scheduleMinutes
     .map((m) => Math.round(m * 60)) // convert to seconds
     .filter((sec) => sec < sessionMinutes * 60);
@@ -73,8 +74,6 @@ export const useFocusReminders = (
   const reminderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const triggeredRemindersRef = useRef<Set<number>>(new Set());
   const scheduledRemindersRef = useRef<number[]>([]);
-  const lastVisibilityCheckRef = useRef<number>(0);
-  const isProcessingReminderRef = useRef<boolean>(false);
 
   // Recompute schedule whenever config/session changes
   useEffect(() => {
@@ -82,29 +81,16 @@ export const useFocusReminders = (
     const schedule = getReminderSchedule(sessionConfig.duration, sessionConfig.strictness);
     scheduledRemindersRef.current = schedule;
     triggeredRemindersRef.current = new Set();
-    console.log("[FocusReminders] Schedule computed:", schedule);
   }, [sessionConfig]);
 
-  // Reset reminders when session starts fresh
+  // Expose to parent: forcibly reset reminders
   const resetReminderTiming = () => {
-    console.log("[FocusReminders] Resetting reminder timing");
     triggeredRemindersRef.current = new Set();
-    isProcessingReminderRef.current = false;
+  };
+  const updateLastMomAudioTimestamp = () => {
+    // No-op for this logic, but keep API the same
   };
 
-  // Clear reminders when break starts
-  useEffect(() => {
-    if (isBreak) {
-      console.log("[FocusReminders] Break started, clearing reminder interval");
-      if (reminderIntervalRef.current) {
-        clearInterval(reminderIntervalRef.current);
-        reminderIntervalRef.current = null;
-      }
-      isProcessingReminderRef.current = false;
-    }
-  }, [isBreak]);
-
-  // Main reminder checking logic
   useEffect(() => {
     if (
       isRunning &&
@@ -113,71 +99,38 @@ export const useFocusReminders = (
       !showMomOverlay &&
       sessionStartTimestampRef.current
     ) {
+      // Helper: fire ALL overdue untriggered reminders on each tick
       const checkReminders = () => {
-        // Don't process if already processing a reminder
-        if (isProcessingReminderRef.current) {
-          return;
-        }
-
         const elapsed = getElapsedSeconds();
-        
-        // Find the next reminder that should have triggered
         for (const reminderTime of scheduledRemindersRef.current) {
           if (
             !triggeredRemindersRef.current.has(reminderTime) &&
             elapsed >= reminderTime
           ) {
-            console.log(`[FocusReminders] Triggering reminder at ${reminderTime}s (elapsed: ${elapsed}s)`);
             triggeredRemindersRef.current.add(reminderTime);
-            isProcessingReminderRef.current = true;
-            
             onFocusReminder();
-            
-            // Reset processing flag after a delay to prevent rapid-fire
-            setTimeout(() => {
-              isProcessingReminderRef.current = false;
-            }, 2000);
-            
-            // Only trigger one reminder at a time
-            break;
           }
         }
       };
 
-      // Handle visibility change - catch up on missed reminders when tab becomes visible
+      // Fire checkReminders every second
+      reminderIntervalRef.current = setInterval(checkReminders, 1000);
+
+      // Also fire checkReminders when tab becomes visible (to catch up on missed reminders)
       const handleVisibility = () => {
         if (document.visibilityState === "visible") {
-          const now = Date.now();
-          if (now - lastVisibilityCheckRef.current > 5000) { // Only if tab was away for >5 seconds
-            console.log("[FocusReminders] Tab became visible, checking for missed reminders");
-            setTimeout(checkReminders, 100); // Small delay to ensure state is settled
-          }
-          lastVisibilityCheckRef.current = now;
+          checkReminders();
         }
       };
-
-      // Set up interval for regular checking
-      reminderIntervalRef.current = setInterval(checkReminders, 1000);
-      
-      // Listen for visibility changes
       document.addEventListener("visibilitychange", handleVisibility);
 
-      // Initial check
+      // Fire once immediately, in case user starts mid-session
       checkReminders();
 
       return () => {
-        if (reminderIntervalRef.current) {
-          clearInterval(reminderIntervalRef.current);
-          reminderIntervalRef.current = null;
-        }
+        if (reminderIntervalRef.current) clearInterval(reminderIntervalRef.current);
         document.removeEventListener("visibilitychange", handleVisibility);
       };
-    } else {
-      // Clear interval when not running or in break
-      if (reminderIntervalRef.current) {
-        clearInterval(reminderIntervalRef.current);
-        reminderIntervalRef.current = null;
-      }
     }
   }, [
     isRunning,
@@ -189,18 +142,11 @@ export const useFocusReminders = (
     onFocusReminder,
   ]);
 
-  // Reset reminders when session stops
   useEffect(() => {
     if (!isRunning) {
-      console.log("[FocusReminders] Session stopped, resetting reminders");
       triggeredRemindersRef.current = new Set();
-      isProcessingReminderRef.current = false;
     }
   }, [isRunning]);
-
-  const updateLastMomAudioTimestamp = () => {
-    // No-op for this logic, but keep API the same
-  };
 
   return {
     updateLastMomAudioTimestamp,
