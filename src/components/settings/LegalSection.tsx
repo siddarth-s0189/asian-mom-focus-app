@@ -5,36 +5,36 @@ import { Button } from "@/components/ui/button";
 
 export default function LegalSection() {
   return (
-    <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
-          <Shield className="w-5 h-5" />
+    <Card className="bg-gray-800/30 border-gray-700/50 rounded-xl backdrop-blur-sm">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-white text-2xl font-medium flex items-center gap-3">
+          <Shield className="w-6 h-6" />
           Privacy & Security
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-gray-300 text-sm mb-4">
+      <CardContent className="space-y-6">
+        <div className="text-white text-lg mb-6">
           Your data is secure with us. We use industry-standard encryption to protect your information.
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Button 
             variant="outline" 
-            className="w-full justify-start bg-transparent border-gray-600 text-white hover:bg-gray-700/50" 
+            className="w-full justify-start bg-white/10 border-gray-600 text-white hover:bg-white/20 py-3 text-lg" 
             disabled
           >
             View Privacy Policy
           </Button>
           <Button 
             variant="outline" 
-            className="w-full justify-start bg-transparent border-gray-600 text-white hover:bg-gray-700/50" 
+            className="w-full justify-start bg-white/10 border-gray-600 text-white hover:bg-white/20 py-3 text-lg" 
             disabled
           >
             Download My Data
           </Button>
           <Button 
             variant="outline" 
-            className="w-full justify-start bg-transparent border-red-500 text-red-400 hover:bg-red-500/10" 
+            className="w-full justify-start bg-transparent border-red-500 text-red-400 hover:bg-red-500/10 py-3 text-lg" 
             disabled
           >
             Delete Account
