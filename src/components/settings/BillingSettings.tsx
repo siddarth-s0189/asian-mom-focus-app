@@ -5,37 +5,68 @@ import { IndianRupee, CreditCard, FileText, XCircle } from "lucide-react";
 
 export default function BillingSettings() {
   return (
-    <Card className="bg-gray-900/80 border-gray-700/50 mb-6">
-      <CardHeader>
-        <CardTitle className="text-white flex gap-2 items-center">
-          <IndianRupee className="w-6 h-6" /> Subscription & Billing (RazorPay)
+    <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+          <IndianRupee className="w-5 h-5" />
+          Subscription & Billing
         </CardTitle>
-        <CardDescription className="text-gray-400">Manage your plan and billing information.</CardDescription>
+        <CardDescription className="text-gray-400 text-sm font-normal">
+          Manage your plan and billing information
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-lg text-white">Current Plan</span>
-            <span className="rounded bg-green-600 text-white px-3 py-1">Pro (Demo)</span>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-white text-base font-medium">Current Plan</div>
+            <div className="text-gray-400 text-sm">Your current subscription plan</div>
           </div>
-          <Button className="mt-2 mr-2">Upgrade/Downgrade</Button>
-          <Button variant="outline" className="mt-2">Cancel Subscription</Button>
+          <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm">Pro (Demo)</span>
         </div>
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-white flex items-center"><CreditCard className="mr-1 h-5" /> Payment Method</span>
-            <span className="text-gray-300">Visa ending in 4242</span>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-gray-400" />
+            <div>
+              <div className="text-white text-base font-medium">Payment Method</div>
+              <div className="text-gray-400 text-sm">Visa ending in 4242</div>
+            </div>
           </div>
+          <Button className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600">
+            Update
+          </Button>
         </div>
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-white flex items-center"><FileText className="mr-1 h-5" /> Billing History</span>
-            <Button variant="outline" className="ml-2">View Invoices</Button>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-gray-400" />
+            <div>
+              <div className="text-white text-base font-medium">Billing History</div>
+              <div className="text-gray-400 text-sm">View your past invoices</div>
+            </div>
           </div>
+          <Button className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600">
+            View Invoices
+          </Button>
         </div>
-        <div>
-          <XCircle className="text-amber-400 inline mr-1" />
-          <span className="text-amber-400">RazorPay features are placeholders. Actual payment integration coming soon.</span>
+
+        <div className="flex gap-3 pt-4 border-t border-gray-600">
+          <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+            Upgrade/Downgrade
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex-1 bg-transparent border-red-500 text-red-400 hover:bg-red-500/10"
+          >
+            Cancel Subscription
+          </Button>
+        </div>
+
+        <div className="bg-amber-900/20 border border-amber-500/30 rounded-md p-3 flex items-start gap-2">
+          <XCircle className="text-amber-400 w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span className="text-amber-400 text-sm">
+            RazorPay features are placeholders. Actual payment integration coming soon.
+          </span>
         </div>
       </CardContent>
     </Card>

@@ -8,7 +8,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Globe, ListTodo, Users } from "lucide-react";
+import { Calendar, Globe, ListTodo, Users, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,127 +25,215 @@ export default function CustomisationSettings() {
   const [blocklistEnabled, setBlocklistEnabled] = useState(false);
 
   return (
-    <div className="space-y-8">
-      {/* SECTION: Customisation */}
-      <Card className="bg-[#171E2A]/90 border-none shadow-lg rounded-xl px-0 py-1">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-white text-2xl font-semibold flex items-center gap-2">
-            <Users className="w-6 h-6" />
-            Customisation
+    <div className="space-y-6">
+      {/* Audio & Speech Section */}
+      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+            <Settings className="w-5 h-5" />
+            Audio & Speech
           </CardTitle>
-          <CardDescription className="text-gray-400 font-normal mt-1">
-            Adjust reminders, blocklist, default tasks, and persona. All features are front-end only placeholders for future enhancement.
+          <CardDescription className="text-gray-400 text-sm font-normal">
+            Configure audio feedback and motivational speech
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col space-y-8 px-6">
-          {/* Email Reminders */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <span className="text-base text-white font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4" /> Study Email Reminders
-                </span>
-                <div className="text-sm text-gray-400">Get daily study reminders via email</div>
-              </div>
-              <Switch checked={emailRemindersEnabled} onCheckedChange={setEmailRemindersEnabled} />
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Sound Effects</div>
+              <div className="text-gray-400 text-sm">Play audio during focus sessions</div>
             </div>
-            {emailRemindersEnabled && (
-              <div className="w-full p-4 mt-2 border border-gray-700/40 rounded-lg bg-[#1a2639] text-gray-400 flex justify-center text-sm animate-fade-in">
-                Calendar UI placeholder for scheduling email reminders
-              </div>
-            )}
-            <div className="flex justify-end mt-3">
-              <Button 
-                className="bg-white/20 text-white font-semibold rounded-full px-6 py-2 backdrop-blur border-none hover:bg-white/30 transition-colors"
-                disabled
-              >
-                Save Reminder Schedule
-              </Button>
-            </div>
+            <Switch 
+              checked={true} 
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
           </div>
-          {/* Blocklist */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <span className="text-base text-white font-medium flex items-center gap-2">
-                  <Globe className="w-4 h-4" /> Blocklist for Sessions
-                </span>
-                <div className="text-sm text-gray-400">Block distracting websites during focus sessions</div>
-              </div>
-              <Switch checked={blocklistEnabled} onCheckedChange={setBlocklistEnabled} />
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Motivational Speech</div>
+              <div className="text-gray-400 text-sm">Enable Asian mom motivational speeches</div>
             </div>
-            {blocklistEnabled && (
-              <div className="mt-2">
-                <div className="flex gap-3 mb-3">
-                  <Input
-                    className="w-2/3 bg-[#151A25] border-gray-700 text-gray-100 rounded-md"
-                    placeholder="Block site domain (future)"
-                    disabled
-                  />
-                  <Button
-                    disabled
-                    className="bg-white/20 text-white font-semibold rounded-full px-5 border-none hover:bg-white/30 transition-colors"
-                  >
-                    Add
-                  </Button>
-                </div>
-                <div className="bg-[#172133] text-gray-500 rounded-md p-2 text-sm">
-                  No sites in blocklist (future feature)
-                </div>
-              </div>
-            )}
+            <Switch 
+              checked={true}
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
           </div>
-          {/* Default Tasks */}
-          <div>
-            <span className="text-base text-white font-medium flex items-center mb-2 gap-2">
-              <ListTodo className="w-4 h-4" /> Default Session Tasks
-            </span>
-            <div className="flex gap-3 mb-3">
-              <Input
-                className="w-2/3 bg-[#151A25] border-gray-700 text-gray-100 rounded-md"
-                placeholder="Add default task (future)"
-                disabled
-              />
-              <Button
-                disabled
-                className="bg-white/20 text-white font-semibold rounded-full px-5 border-none hover:bg-white/30 transition-colors"
-              >
-                Add
-              </Button>
+        </CardContent>
+      </Card>
+
+      {/* Notifications Section */}
+      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+            <Calendar className="w-5 h-5" />
+            Notifications
+          </CardTitle>
+          <CardDescription className="text-gray-400 text-sm font-normal">
+            Control how you receive notifications and reminders
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Email Reminders</div>
+              <div className="text-gray-400 text-sm">Get daily study reminders via email</div>
             </div>
-            <div className="bg-[#172133] text-gray-500 rounded-md p-2 text-sm">
-              No default tasks set (future feature)
-            </div>
+            <Switch 
+              checked={emailRemindersEnabled} 
+              onCheckedChange={setEmailRemindersEnabled}
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
           </div>
-          {/* Persona Selection */}
-          <div>
-            <span className="text-base text-white font-medium flex items-center mb-4">
-              Choose Persona
-            </span>
-            <div className="flex gap-4 flex-wrap">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Session Goal Reminders</div>
+              <div className="text-gray-400 text-sm">Get reminded about your session goals during breaks</div>
+            </div>
+            <Switch 
+              checked={false}
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Session Preferences Section */}
+      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+            <Globe className="w-5 h-5" />
+            Session Preferences
+          </CardTitle>
+          <CardDescription className="text-gray-400 text-sm font-normal">
+            Customize your focus session experience
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Blocklist for Sessions</div>
+              <div className="text-gray-400 text-sm">Block distracting websites during focus sessions</div>
+            </div>
+            <Switch 
+              checked={blocklistEnabled} 
+              onCheckedChange={setBlocklistEnabled}
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Automatic Breaks</div>
+              <div className="text-gray-400 text-sm">Enable automatic break scheduling for long sessions</div>
+            </div>
+            <Switch 
+              checked={false}
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
+          </div>
+          
+          {blocklistEnabled && (
+            <div className="mt-4 pt-4 border-t border-gray-600">
+              <div className="flex gap-3 mb-3">
+                <Input
+                  className="flex-1 bg-[#1a2332] border-gray-600 text-gray-100 text-sm"
+                  placeholder="Block site domain (future)"
+                  disabled
+                />
+                <Button
+                  disabled
+                  className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600 px-4"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="bg-[#1a2332] text-gray-400 rounded-md p-3 text-sm">
+                No sites in blocklist (future feature)
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Appearance Section */}
+      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+            <Users className="w-5 h-5" />
+            Appearance
+          </CardTitle>
+          <CardDescription className="text-gray-400 text-sm font-normal">
+            Customize the visual appearance of the app
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white text-base font-medium">Dark Mode</div>
+              <div className="text-gray-400 text-sm">Enable dark theme (always on for AsianMom.gg)</div>
+            </div>
+            <Switch 
+              checked={true}
+              disabled
+              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-transparent data-[state=unchecked]:border-2 data-[state=unchecked]:border-red-500 data-[state=checked]:border-2 data-[state=checked]:border-green-500"
+            />
+          </div>
+          
+          <div className="pt-4 border-t border-gray-600">
+            <div className="text-white text-base font-medium mb-4">Choose Persona</div>
+            <div className="grid grid-cols-2 gap-4">
               {personas.map(persona => (
                 <button
                   key={persona.value}
-                  className={`border-2 rounded-2xl p-2 flex flex-col items-center transition-all
+                  className={`border-2 rounded-lg p-4 flex flex-col items-center transition-all hover:scale-105
                     ${
                       selectedPersona === persona.value
-                        ? "border-red-500 bg-red-600/10 ring-2 ring-red-500"
-                        : "border-gray-700 bg-[#172133] hover:scale-105"
+                        ? "border-red-500 bg-red-600/10"
+                        : "border-gray-600 bg-[#1a2332] hover:border-gray-500"
                     }`}
                   onClick={() => setSelectedPersona(persona.value)}
                   type="button"
-                  style={{ width: 80 }}
                 >
                   <img
                     src={persona.img}
                     alt={persona.label}
-                    className="w-12 h-12 rounded-full object-cover mb-1"
+                    className="w-20 h-20 rounded-full object-cover mb-3"
                     draggable={false}
                   />
-                  <span className="text-xs text-white">{persona.label}</span>
+                  <span className="text-white text-sm font-medium">{persona.label}</span>
                 </button>
               ))}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Default Tasks Section */}
+      <Card className="bg-[#2a3441] border-[#3a4451] rounded-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white text-xl font-medium flex items-center gap-3">
+            <ListTodo className="w-5 h-5" />
+            Default Tasks
+          </CardTitle>
+          <CardDescription className="text-gray-400 text-sm font-normal">
+            Set up default tasks for your study sessions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 mb-3">
+            <Input
+              className="flex-1 bg-[#1a2332] border-gray-600 text-gray-100 text-sm"
+              placeholder="Add default task (future)"
+              disabled
+            />
+            <Button
+              disabled
+              className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600 px-4"
+            >
+              Add
+            </Button>
+          </div>
+          <div className="bg-[#1a2332] text-gray-400 rounded-md p-3 text-sm">
+            No default tasks set (future feature)
           </div>
         </CardContent>
       </Card>
